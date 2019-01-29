@@ -5,14 +5,17 @@ import matplotlib.pyplot as plt
 # two nodes, simulation runs for N ticks, nodes can wake up each tick with some probability, 
 # a match happens if sender sends after ot at the same time receiver wake up
 
-# we simulate one packet transmit in 15 mins
+# we simulate one packet transmit in 15 mins (900000 ticks)
+# In the old protocal every 15 mins, sender will send 1000 ticks, receiver will be awake 8910 ticks
+
+ticks_per_slot = 20 
+
 
 simulation_num = 100
 # parameter 
-slot_num = 45000
+slot_num = 900000 / ticks_per_slot
 awake_chance = 0.05
 
-# ticks_per_slot = 20 
 sender_slots_per_awake = 1
 receiver_slots_per_awake = 3
 
@@ -60,7 +63,12 @@ def watch_nodes(env):
             if(receiver_switch == receiver_slots_per_awake):
                 same_time_match_count += 1
 
-            # add remaining awake slots
+                # the sender send and receiver wake up at the same time. because drift, there is 50% fail chance
+                if(random.random() < 0.5):
+                    success = False
+                    match_count -= 1
+
+            # add remaining awake slots to make the output neat
             sender_awake_slots_num += sender_slots_per_awake - 1
             receiver_awake_slots_num += receiver_slots_per_awake - 1
 
@@ -100,7 +108,7 @@ for i in range(simulation_num):
     #print(simulation_num)
 
 print("simulation_num = ", simulation_num)
-#print("ticks per slot = ", ticks_per_slot)
+
 print("sender slots per awake = ", sender_slots_per_awake)
 print("receiver_slots_per_awake = ", receiver_slots_per_awake)
 print("slot_num per frame = ", slot_num)
@@ -111,4 +119,13 @@ print("same_time_match_count = ", same_time_match_count)
 print("success rate = ", (match_count / simulation_num))
 print("node 0 awake time = ", (sender_awake_slots_num/simulation_num))
 print("node 1 awake time = ", (receiver_awake_slots_num/simulation_num))
+
+print("\nI assume ticks per slot = ", ticks_per_slot)
+
+# per slot, sender uses 9 ticks to send packet, 2 ticks to switch mode, 9 ticks to wait for ak
+# per slot, receiver uses 20 ticks to wait for packet
+
+print("node 0 ticks for send = ", (sender_awake_slots_num/simulation_num)*sender_slots_per_awake*9)
+print("node 0 ticks for wake up = ", (sender_awake_slots_num/simulation_num)*sender_slots_per_awake*9)
+print("node 1 ticks for wake up = ", (receiver_awake_slots_num/simulation_num)*receiver_slots_per_awake*ticks_per_slot )
 
