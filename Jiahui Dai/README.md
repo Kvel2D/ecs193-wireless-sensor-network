@@ -9,9 +9,9 @@ We assume a data stream, which is only 1 packet, is sent every 15 minutes and it
 
 I think node0 and node1 will use approximately same amount of time and consume approximately same amount of energy, because they are doing the same things. 
 
-Receiver awake time in 15 mins = awake chance * 900000 / ticks per check 
+Receiver awake num in 15 mins = awake chance * 900000 / ticks per check 
 
-Total consumption of node0 = node1 = how many times it sends * consumption per send + how many times it wakes up to check * consumption per check + Receiver awake time in 15 mins * consumption per check
+Total consumption of node0 = node1 = how many times it sends * consumption per send + how many times it wakes up to check * consumption per check + Receiver awake num in 15 mins * consumption per check
 
 
 TODO: make graph plotting
