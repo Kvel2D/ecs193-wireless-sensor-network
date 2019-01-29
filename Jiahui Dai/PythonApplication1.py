@@ -5,15 +5,16 @@ import matplotlib.pyplot as plt
 # two nodes, simulation runs for N ticks, nodes can wake up each tick with some probability, 
 # a match happens if sender sends after ot at the same time receiver wake up
 
+# we simulate one packet transmit in 15 mins
 
 simulation_num = 100
 # parameter 
-slot_num = 3000
+slot_num = 45000
 awake_chance = 0.05
 
 # ticks_per_slot = 20 
-sender_slots_per_awake = 3
-receiver_slots_per_awake = 2
+sender_slots_per_awake = 1
+receiver_slots_per_awake = 3
 
 awake = [False, False]
 
