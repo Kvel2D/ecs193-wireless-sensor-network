@@ -14,4 +14,4 @@ TODO: make graph plotting
 
 In the old protocal,
 
-In every 15 mins, sender will send 1000 ticks for ad and 9 ticks for packet, receiver will be awake 8910 ticks(receiver will be awake 990 times and every time is 9 ticks), 
+In every 15 mins, sender will send 1000 ticks for ad, receiver will be awake 8910 ticks(receiver will be awake 990 times and every time is 9 ticks), 
