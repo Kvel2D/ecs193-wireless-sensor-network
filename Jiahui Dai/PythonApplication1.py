@@ -1,6 +1,6 @@
 import simpy
 import random
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 # two nodes, simulation runs for N ticks, nodes can wake up each tick with some probability, 
 # a match happens if sender sends after ot at the same time receiver wake up
@@ -13,11 +13,13 @@ ticks_per_slot = 20
 
 simulation_num = 100
 # parameter 
-slot_num = 900000 / ticks_per_slot
-awake_chance = 0.05
+#slot_num = 900000 / ticks_per_slot
+slot_num = 1000
+sender_awake_chance = 0.05
+receiver_awake_chance = 0.05
 
 sender_slots_per_awake = 1
-receiver_slots_per_awake = 3
+receiver_slots_per_awake = 2
 
 awake = [False, False]
 
@@ -40,12 +42,12 @@ def node(env):
         sender_switch += 1
         if(sender_switch == sender_slots_per_awake):
             awake[0] = False
-            awake[0] = (random.random() < awake_chance)
+            awake[0] = (random.random() < sender_awake_chance)
 
         receiver_switch += 1
         if(receiver_switch == receiver_slots_per_awake):
             awake[1] = False
-            awake[1] = (random.random() < awake_chance)
+            awake[1] = (random.random() < receiver_awake_chance)
 
         
         yield env.timeout(1)
@@ -112,7 +114,8 @@ print("simulation_num = ", simulation_num)
 print("sender slots per awake = ", sender_slots_per_awake)
 print("receiver_slots_per_awake = ", receiver_slots_per_awake)
 print("slot_num per frame = ", slot_num)
-print("awake chance = ", awake_chance)
+print("sender_awake_chance = ", sender_awake_chance)
+print("receiver_awake_chance = ", receiver_awake_chance)
 print("success num in", simulation_num, "simulation = ", match_count)
 print("same_time_match_count = ", same_time_match_count)
 
