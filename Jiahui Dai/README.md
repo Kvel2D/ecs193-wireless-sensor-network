@@ -12,6 +12,6 @@ I think node0 and node1 will use approximately same amount of time and consume a
 
 TODO: make graph plotting
 
-In the old protocal,
+In the old protocal, in every 15 mins, sender will send 1000 ticks for ad and 9 ticks for sending a packet, receiver will be awake 8910 ticks(990 times and every time is 9 ticks for listening) and 9 ticks for receiveing the packet.
 
-In every 15 mins, sender will send 1000 ticks for ad, receiver will be awake 8910 ticks(receiver will be awake 990 times and every time is 9 ticks), 
+In the old protocal, sender sends 1 sec, and receiver listens 9 sec.
