@@ -3,11 +3,13 @@
 # Jiahui Dai
 
 # In the old protocal, 
-  sender sends 1 sec, and receiver listens 9 sec.
+  sender sends 96 sec (in 24 hours)
+  
+  receiver listens 864 sec (in 24 hours)
 
 # My Output:
 
-  simulation_num =  96 (packet number)
+  simulation_num =  96 (packet number in 24 hours)
   
   sender slots per awake =  1
   
