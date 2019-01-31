@@ -2,9 +2,10 @@
 
 # Jiahui Dai
 
-In the old protocal, sender sends 1 sec, and receiver listens 9 sec.
+# In the old protocal, 
+  sender sends 1 sec, and receiver listens 9 sec.
 
-My Output:
+# My Output:
 
   simulation_num =  96 (packet number)
   sender slots per awake =  1
@@ -24,7 +25,7 @@ My Output:
   node 1 awake time =  0:0:12:606 = 1.4007268958333332 %
   avg time to transmit packet = 0:0:49:367
 
-
+# explanation
 my simulator, which simulates the 15 mins transmitting event from the sender to the receiver. 
 
 My understanding:
