@@ -12,3 +12,7 @@
   - ie. if receiver starts hearing transmitter at tick 5, it will extend extra 4 ticks to listen to the full packet
 - immediate transmission/reception = 0 delay in between transmission
 - acknowledgement takes 5 ticks and is always successful
+
+## Data to Record
+- number of packets total generated vs number of packets successfully transmitted
+- sleep time --> calculate ratio of awake time
