@@ -8,21 +8,31 @@
 # My Output:
 
   simulation_num =  96 (packet number)
+  
   sender slots per awake =  1
+  
   receiver_slots_per_awake =  1
+  
   slot_num per frame =  100000.0
+  
   sender_awake_chance =  0.014
+  
   receiver_awake_chance =  0.014
+  
   success num in 96 simulation =  96
 
   success rate =  1.0
 
   how many time node 0 send before success =  77.01041666666667
+  
   how many time node 1 listen before success =  77.52083333333333
 
   node 0 send time =  0:0:0:693 = 1.4430000439814814 %
+  
   node 0 awake time =  0:0:12:293
+  
   node 1 awake time =  0:0:12:606 = 1.4007268958333332 %
+  
   avg time to transmit packet = 0:0:49:367
 
 # explanation
