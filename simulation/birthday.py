@@ -50,7 +50,7 @@ class Node:
 
     def run(self, env, parent, child):
         while True:
-            if (len(self.packet_list) > 0) & (child is not None):
+            if (len(self.packet_list) > 0) and (child is not None):
                 tx_cycle_start_time = env.now
 
                 sleep_time = 0
