@@ -85,8 +85,8 @@ def watch_nodes(env):
                     #match_count -= 1
 
             # add remaining awake slots to make the output neat
-            sender_send_slots_num += sender_slots_per_awake - 1
-            receiver_awake_slots_num += receiver_slots_per_awake - 1
+            #sender_send_slots_num += sender_slots_per_awake - 1
+            #receiver_awake_slots_num += receiver_slots_per_awake - 1
             succeed_time += 1
         else:
             succeed_time += 1
