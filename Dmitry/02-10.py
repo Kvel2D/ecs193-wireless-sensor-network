@@ -2,20 +2,18 @@ import simpy
 import random
 import math
 
-SIM_TIME = 24 * 60 * 60 * 1000
-FRAME = 1000
+# record tx/rx time separately
+# simulate 4 nodes but record second node's time only, as a float
+# record rate as the x part in 1/x, not (1/x) value itself 
+
+SIM_TIME = 12 * 60 * 60 * 1000
 
 packet_number = 0
 TIME_BETWEEN_PACKETS = 15 * 60 * 1000
 
-EXPOVARIATE = 0
-RANDINT = 1
-RANDOMIZATION_SCHEME = EXPOVARIATE
-TX_SLEEP_RATE = 1/1000
-RX_SLEEP_RATE = 1/1000
-TX_SLEEP_RANGE = (1000, 1500)
-RX_SLEEP_RANGE = (1000, 1500)
-NODE_COUNT = 5
+TX_SLEEP_RATE = 1000
+RX_SLEEP_RATE = 1000
+NODE_COUNT = 4
 
 def int_from_range(range):
     return random.randint(range[0], range[1])
@@ -33,10 +31,10 @@ def format_time(time: int):
 
 
 class Packet:
-    def __init__(self, identifier, arrival_time):
+    def __init__(self, identifier, crete_time):
         self.identifier = identifier
-        self.arrival_time = arrival_time
-        self.transmit_time = 0
+        self.create_time = crete_time
+        self.gateway_time = 0
 
 
 class Node:
@@ -44,26 +42,20 @@ class Node:
         self.id = id
         self.transmitting = False
 
-        self.sleep_time_total = 0
-        self.tx_mode_ticks = 0
+        self.tx_time_total = 0
+        self.rx_time_total = 0
 
         self.packet_list = []
 
     def run(self, env, parent, child):
         while True:
             if (len(self.packet_list) > 0) and (child is not None):
-                tx_cycle_start_time = env.now
 
                 sleep_time = 0
-                if RANDOMIZATION_SCHEME == EXPOVARIATE:
-                    sleep_time = random.expovariate(TX_SLEEP_RATE)
-                else :
-                    sleep_time = int_from_range(TX_SLEEP_RANGE)
-
-                self.sleep_time_total += sleep_time
+                sleep_time = random.expovariate(1.0 / TX_SLEEP_RATE)
                 yield env.timeout(sleep_time)
 
-                self.packet_list[0].transmit_time += sleep_time
+                tx_start_timestamp = env.now
 
                 # print('%s> node %d starts transmitting' % (format_time(env.now), self.id))
                 self.transmitting = True
@@ -72,15 +64,13 @@ class Node:
 
                 yield env.timeout(ACK_TIME)
 
-                self.tx_mode_ticks += env.now - tx_cycle_start_time
+                self.tx_time_total += (env.now - tx_start_timestamp)
             else:
                 sleep_time = 0
-                if RANDOMIZATION_SCHEME == EXPOVARIATE:
-                    sleep_time = random.expovariate(RX_SLEEP_RATE)
-                else :
-                    sleep_time = int_from_range(RX_SLEEP_RANGE)
-                self.sleep_time_total += sleep_time
+                sleep_time = random.expovariate(1.0 / RX_SLEEP_RATE)
                 yield env.timeout(sleep_time)
+
+                rx_start_timestamp = env.now
 
                 # print('%s> node %d starts receiving' % (format_time(env.now), self.id))
 
@@ -97,10 +87,15 @@ class Node:
 
                 if transmission_ticks_recorded == TRANSMIT_SLOT:
                     # print('%s> node %d received packet' % (format_time(env.now), self.id))
-                    self.packet_list.append(parent.packet_list.pop(0))
-                    self.packet_list[0].transmit_time += TRANSMIT_SLOT + ACK_TIME
+                    packet = parent.packet_list.pop(0)
+                    # If current node has no child, then it is the gateway, mark time for packet
+                    if child is None:
+                        packet.gateway_time = env.now
+                    self.packet_list.append(packet)
 
                     yield env.timeout(ACK_TIME)
+
+                self.rx_time_total += (env.now - rx_start_timestamp)
 
 
 def create_packet(node, env):
@@ -108,8 +103,7 @@ def create_packet(node, env):
     while True:
         # print('%s> new packet' % format_time(env.now))
 
-        arrival_time = env.now
-        new_packet = Packet(packet_number, arrival_time)
+        new_packet = Packet(packet_number, env.now)
         packet_number += 1
         node.packet_list.append(new_packet)
 
@@ -117,7 +111,6 @@ def create_packet(node, env):
 
 
 def simulate():
-    packet_number = 0
     env = simpy.Environment()
 
     nodes = []
@@ -140,36 +133,33 @@ def simulate():
 
     file = open("results.txt", "a")
 
-    print("---INPUT---")
-    print("simulation time: %s" % format_time(SIM_TIME))
-    print("time between packets: %s" % format_time(TIME_BETWEEN_PACKETS))
-    print("node count: %s" % NODE_COUNT)
+    file.write("%d," % TX_SLEEP_RATE)
+    file.write("%d," % RX_SLEEP_RATE)
 
-    if RANDOMIZATION_SCHEME == EXPOVARIATE:
-        print("randomization scheme: expovariate")
-        print("TX_SLEEP_RATE: %f" % TX_SLEEP_RATE)
-        print("RX_SLEEP_RATE :%f" % RX_SLEEP_RATE)
-        file.write("%f, " % TX_SLEEP_RATE)
-        file.write("%f, " % RX_SLEEP_RATE)
-    else:
-        print("randomization scheme: randint")
-        print('tx range = (%d, %d)' % TX_SLEEP_RANGE)
-        print('rx range = (%d, %d)' % RX_SLEEP_RANGE)
+    tx_time_percent = nodes[1].tx_time_total / SIM_TIME * 100
+    rx_time_percent = nodes[1].rx_time_total / SIM_TIME * 100
+    file.write("%f," % tx_time_percent)
+    file.write("%f," % rx_time_percent)
 
-    print("---RESULTS---\n")
-    print("packets: %d/%d" % (len(nodes[NODE_COUNT - 1].packet_list), packet_number))
+    total_packet_create_to_gateway_time = 0
+    for packet in nodes[NODE_COUNT - 1].packet_list:
+        create_to_gateway_time = packet.gateway_time - packet.create_time
+        total_packet_create_to_gateway_time += create_to_gateway_time
+    avg_packet_create_to_gateway_time = total_packet_create_to_gateway_time / len(nodes[NODE_COUNT - 1].packet_list)
+    # NOTE: (NODE_COUNT - 1) because for N nodes, there are (N-1) connections
+    avg_packet_node_to_node_time = avg_packet_create_to_gateway_time / (NODE_COUNT - 1)
 
-    for i in range(NODE_COUNT):
-        awake_time_percent = (SIM_TIME - nodes[i].sleep_time_total) / SIM_TIME * 100
-        print("node[%d] awake time = %f %%" % (i, awake_time_percent))
-        file.write("%f, " % ((SIM_TIME - nodes[i].sleep_time_total) / SIM_TIME * 100))
-
-
-    avg_time_to_transmit_packet = nodes[0].tx_mode_ticks / packet_number
-    file.write('%s\n' % format_time(avg_time_to_transmit_packet))
-    print('avg time to transmit packet between first and second node: %s' % format_time(avg_time_to_transmit_packet))
-
+    file.write('%f\n' % avg_packet_node_to_node_time)
     file.close()
 
-simulate()
+
+sleep_rates = [100, 200, 400, 800, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000]
+
+for rx_rate_i in range(len(sleep_rates)):
+    for tx_rate_i in range(len(sleep_rates)):
+        TX_SLEEP_RATE = sleep_rates[tx_rate_i]
+        RX_SLEEP_RATE = sleep_rates[rx_rate_i]
+        packet_number = 0
+
+        simulate()
 
