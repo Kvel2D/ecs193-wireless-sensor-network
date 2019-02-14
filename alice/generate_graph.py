@@ -32,16 +32,17 @@ def same_tx_rx_rate(varying_rates):
     plt.title('Avg Transmission Time per Pkt')
     fig1.show()
 
-def different_tx_rx_rate(differing_rates):
-    tx_rate = differing_rates['tx_rate'].unique()
-    rx_rate = differing_rates['rx_rate'].unique()
+
+def generate_3d(df, dependent, z_lower_bound, z_upper_bound, fig_id, title):
+    tx_rate = df['tx_rate'].unique()
+    rx_rate = df['rx_rate'].unique()
     X, Y = np.meshgrid(tx_rate, rx_rate)
 
-    tx_time = differing_rates['tx_time']
-    Z = tx_time.values.reshape(len(X), len(Y))
+    Z = df[dependent]
+    Z = Z.values.reshape(len(X), len(Y))
     print(Z)
 
-    fig = plt.figure(2)
+    fig = plt.figure(fig_id)
     ax = fig.gca(projection='3d')
 
     # Plot the surface.
@@ -49,90 +50,32 @@ def different_tx_rx_rate(differing_rates):
                            linewidth=0, antialiased=False)
 
     # Customize the z axis.
-    ax.set_zlim(-1, 2)
+    ax.set_zlim(z_lower_bound, z_upper_bound)
     ax.zaxis.set_major_locator(LinearLocator(10))
     ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
     plt.xlabel('Avg time in between tx (ms)')
     plt.ylabel('Avg time in between rx (ms)')
-    plt.title('Tx_time (percentage)')
+    plt.title(title)
 
     # Add a color bar which maps values to colors.
     fig.colorbar(surf, shrink=0.5, aspect=5)
 
     fig.show()
 
-def rx_rate3D(differing_rates):
-    tx_rate = differing_rates['tx_rate'].unique()
-    rx_rate = differing_rates['rx_rate'].unique()
-    #print(differing_rates['tx_rate'])
-    #print(differing_rates['rx_rate'])
 
-    X, Y = np.meshgrid(tx_rate, rx_rate)
-
-    # R = X + Y
-    # print(R)
-
-    rx_time = differing_rates['rx_time']
-    Z = rx_time.values.reshape(len(X), len(Y))
-    print(Z)
-
-    fig = plt.figure(3)
-    ax = fig.gca(projection='3d')
-
-
-    # Plot the surface.
-    surf = ax.plot_surface(X, Y, Z, cmap=cm.coolwarm,
-                           linewidth=0, antialiased=False)
-
-    # Customize the z axis.
-    ax.set_zlim(-1, 10)
-    ax.zaxis.set_major_locator(LinearLocator(10))
-    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-    plt.xlabel('Avg time in between tx (ms)')
-    plt.ylabel('Avg time in between rx (ms)')
-    plt.title('Rx_time (percentage)')
-
-    # Add a color bar which maps values to colors.
-    fig.colorbar(surf, shrink=0.5, aspect=5)
-
-    fig.show()
-
-def avg_time_pkt3D(differing_rates):
-    tx_rate = differing_rates['tx_rate'].unique()
-    rx_rate = differing_rates['rx_rate'].unique()
-
-    X, Y = np.meshgrid(tx_rate, rx_rate)
-
-    avg_pkt_time = differing_rates['avg_transmission_time_per_pkt']
-    Z = avg_pkt_time.values.reshape(len(X), len(Y))
-    print(Z)
-
-    fig = plt.figure(4)
-    ax = fig.gca(projection='3d')
-
-    # Plot the surface.
-    surf = ax.plot_surface(X, Y, Z, cmap=cm.coolwarm,
-                           linewidth=0, antialiased=False)
-
-    # Customize the z axis.
-    ax.set_zlim(0, 11000000)
-    ax.zaxis.set_major_locator(LinearLocator(10))
-    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-    plt.xlabel('Avg time in between tx (ms)')
-    plt.ylabel('Avg time in between rx (ms)')
-    plt.title('Avg time to transmit a packet (ms)')
-
-    # Add a color bar which maps values to colors.
-    fig.colorbar(surf, shrink=0.5, aspect=5)
-
-    plt.show()
 
 if __name__ == '__main__':
     varying_rates = read_data("varying_rate.csv")
     same_tx_rx_rate(varying_rates)
 
     differing_rates = read_data("../Dmitry/02-10-results.txt")
-    different_tx_rx_rate(differing_rates)
-    rx_rate3D(differing_rates)
-    avg_time_pkt3D(differing_rates)
+    generate_3d(differing_rates, 'tx_time', -1, 3, 2, 'tx_time (percentage)')
+    generate_3d(differing_rates, 'rx_time', -1, 10, 3, 'rx_time (percentage)')
+    generate_3d(differing_rates, 'avg_transmission_time_per_pkt', 0, 11000000, 4, 'avg_transmission_time_per_pkt (ms)')
+    # plt.show()
 
+    fixed_slot = read_data("../Jiahui Dai/fixSlot_varying_rate.csv")
+    generate_3d(fixed_slot, 'n0_awake_time', -1, 3, 5, 'n0_awake_time (percentage)')
+    generate_3d(fixed_slot, 'n1_awake_time', -1, 3, 6, 'n1_awake_time (percentage)')
+    generate_3d(fixed_slot, 'avg_transmission_time_per_pkt', 0, 950000, 7, 'avg_transmission_time_per_pkt (ms)')
+    plt.show()
