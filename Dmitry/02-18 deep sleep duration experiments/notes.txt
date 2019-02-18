@@ -1,0 +1,114 @@
+
+Sleep duration logic
+
+    void WatchdogAVR::_setPeriod(int maxMS, int &wdto, int &actualMS) {
+        // Note the order of these if statements from highest to lowest  is 
+        // important so that control flow cascades down to the right value based
+        // on its position in the range of discrete timeouts.
+        if((maxMS >= 8000) || (maxMS == 0)) {
+            wdto     = WDTO_8S;
+            actualMS = 8000;
+        } else if(maxMS >= 4000) {
+            wdto     = WDTO_4S;
+            actualMS = 4000;
+        } else if(maxMS >= 2000) {
+            wdto     = WDTO_2S;
+            actualMS = 2000;
+        } else if(maxMS >= 1000) {
+            wdto     = WDTO_1S;
+            actualMS = 1000;
+        } else if(maxMS >= 500) {
+            wdto     = WDTO_500MS;
+            actualMS = 500;
+        } else if(maxMS >= 250) {
+            wdto     = WDTO_250MS;
+            actualMS = 250;
+        } else if(maxMS >= 120) {
+            wdto     = WDTO_120MS;
+            actualMS = 120;
+        } else if(maxMS >= 60) {
+            wdto     = WDTO_60MS;
+            actualMS = 60;
+        } else if(maxMS >= 30) {
+            wdto     = WDTO_30MS;
+            actualMS = 30;
+        } else {
+            wdto     = WDTO_15MS;
+            actualMS = 15;
+        }
+    }
+
+
+Can get more precise durations like this
+
+    int sleep_duration = 1543;
+
+    while (sleep_left > 0) {
+        int actual_sleep_time = Watchdog.sleep(sleep_left);
+
+        sleep_left -= actual_sleep_time;
+    }
+
+
+Doesn't get complete precision because the minimum duration is still 15ms.
+
+Questions
+    How does the fact that sleep precision is at most 15ms affect perfomance?
+    How costly is waking up to increase sleep precision? In the worst case there are 9 wake-up cycles when sleep_left becomes sub 8s.
+    Can precision of 8s be used? How does that affect perfomance?
+    Would it be better to sleep in multiples of 8 to reduce the amount of wake-sleep cycles that are done for precision?
+
+I'm going to use current simulation with 4 nodes and some values adjusted for last saturday's (2-16) experiment.
+
+    Observed rx awake time: 2-4, rarely 5-7
+    Observed tx awake time: 9-13
+
+    let's say rx is awake for 4 ticks
+    tx takes 8 ticks for transmission
+    4 ticks for ACK transmission/receiving
+
+Not sure what rates to use or whether to simulate a bit range in case this stuff affects certain rate combinations disproportionately. In the intereset of time I'm going to start with iterating over rates of [400, 1000, 2000]
+
+NOTE: had to adjust simulation by adding a new constant "RECEIVE_TIME" because now rx node can be awake for a duration not equal to TRANSMIT_SLOT, as observed from the experiment.
+
+I created a convert_time_to_sleepydog_time(). Examples:
+    15 => 15
+    17 => 15
+    8002 => 8000
+    8016 = > 8015
+
+    def convert_time_to_sleepydog_time(time: int):
+        temp = time
+        temp = temp % 250
+        temp = temp % 15
+        sum = time - temp
+        if sum < 15:
+            sum = 15
+        return sum
+
+        Only 250 and 15 are used because values greather than 250 are multiples of 250, values between 250 and 15 are multiples of 15
+
+
+One thing is that all sleep being in multiples of 15(or 250) adds slight synchronization which can both reduce and increase the network perfomance away from the reality. Maybe adding +-1 to sleep duration would reduce this. Going to try both and compare results.
+
+Initial results seem to not be much different from normal simulation. 
+
+Most of the ratios have difference in the range of +-10%.
+
+Some ratios have very large differences, probably because of sync
+    1000-2000 = +200%
+    1000-400  = -25%
+
+Random +-1 didn't improve things much. 1000-200 became +800% and there are now a couple more bad results.
+
+The syncing seems to either not affect things much or make it much worse.
+Need to test the effect of sync on actual hardware.
+    Run two idential experiments, one with precise delay or random, other one scaled like sleepydog would scale it.
+    Sync effect could be diminished by randomness and drift in hardware.
+
+Other possibility is to wait after sleeping. This adds to awake time but prevents sync. Could fit in some extra rx/tx activity during wait.
+    this results in about similar times(as expected) and much higher awake times(as expected)
+    about twice as worse
+
+
+
