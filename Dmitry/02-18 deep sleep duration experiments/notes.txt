@@ -1,3 +1,10 @@
+SUMMARY:
+
+Sleepydog sleep durations are not precise. They are a combination of multiples of 250 and 15 which introduces some sync. Simulation results showed the perfomance doesn't change that much most of the time but in some cases it can get 10 times worse. Possible actions:
+1) Sleep for not-precise durations anyway. Maybe the hardware quirks or the particular rates we use will prevent big perfomance loss.
+2) Sleep for not-precise durations but then wait to get the precise random durations between cycles. This prevents sync from affecting perfomance in any way but increases awake time by up to 200%. 
+3) Same as 2) but try to fit in some rx/tx activity if the extra wait duration allows it, need to investigate.
+
 
 Sleep duration logic
 
