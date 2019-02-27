@@ -5,6 +5,7 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import networkx as nx
 import simpy
+from hierarchy_pos import hierarchy_pos
 
 colors = ['b', 'g', 'r']  # used to color nodes in animation
 animation_frames = []  # add frames in
@@ -292,6 +293,8 @@ def tree_tester(branch_factor = 2, height = 3, mq_length = 10, rx_sleep_ticks = 
                 ticks_between_packets = 15 * 60 * 1000, run_until = 12 * 60 * 60 * 1000):
     env = simpy.Environment()
     graph = nx.balanced_tree(branch_factor, height, nx.DiGraph)
+    global pos
+    pos = hierarchy_pos(graph, root = 0)
     graph = graph.reverse()  # we want the edges to all point to root
     generator_nodes = []
     for i in graph.nodes:
@@ -311,8 +314,6 @@ def tree_tester(branch_factor = 2, height = 3, mq_length = 10, rx_sleep_ticks = 
     #                               graph.nodes[i]['node'].senders))
     # print()
     env.process(generate_multiple_messages(env, generator_nodes, ticks_between_packets))
-    global pos
-    pos = nx.graphviz_layout(graph, prog = 'dot')
     env.run(until = run_until)
     for node in graph.nodes:
         _node = graph.nodes[node]['node']
@@ -328,8 +329,10 @@ def tree_tester(branch_factor = 2, height = 3, mq_length = 10, rx_sleep_ticks = 
 
     fig = plt.gcf()
     anim = animation.FuncAnimation(fig, update_animation, frames = len(animation_frames), blit = False)
-    # anim.save('sim.html', writer='html',  savefig_kwargs={'facecolor':'white'}, fps=1)
-    plt.show()
+    anim.save('sim.html', writer = 'html', savefig_kwargs = {
+            'facecolor': 'white'
+    }, fps = 1)
+    # plt.show()
 
 if __name__ == '__main__':
     sleep_rates = [100, 200, 400, 800, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000]
