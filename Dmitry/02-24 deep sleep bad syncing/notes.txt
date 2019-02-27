@@ -1,0 +1,22 @@
+
+need to pick some rates for extensive testing
+shooting for node-to-node time of 1 minute
+
+100,4000    = 1.292056  0:1:38:373
+400,1000    = 0.618870  0:1:17:930
+600,600     = 0.779810  0:1:12:977
+
+recording the max-min-avg of node-to-node times for a very long duration
+compare baseline vs sleepydog
+    no noticeable difference, these specific rates unaffected?
+    or not enough sim time?
+
+going to try the specific rate that was bad in the last experiment
+1000,2000
+there is a big difference, though the rate is bad in general, baseline is in terms of hours
+
+conclusion
+    seems like sleepydog doesn't cause bad sync for all rates, but the logic for which it does and doesn't affect is unclear
+    can use sleepydog without any modifications but need to keep it in mind
+    if we encounter some bad perfomance in the implementation, need to simulate the rates with sleepydog time and/or try to add extra wait and see if sleepydog is the cuase
+
