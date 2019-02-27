@@ -1,10 +1,27 @@
 import random
 import string
 
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
 import networkx as nx
 import simpy
 
-finish_list = []
+colors = ['b', 'g', 'r']  # used to color nodes in animation
+animation_frames = []  # add frames in
+finish_list = []  # list of messages collected at gateway node
+
+pos = None
+
+
+def generate_draw_network(graph, sender = 0, receiver = 0, transmit = False):
+    animation_frames.append(
+            nx.draw_networkx(graph, pos = pos,
+                             node_color = [colors[graph.nodes[node]['node'].mode] for node in graph.nodes],
+                             edge_color = ['g' if transmit and (sender, receiver) == e else 'r' for e in graph.edges]))
+
+
+def update_animation(step):
+    return animation_frames[step]
 
 
 def generate_message(env, start_node, ticks_between_packets):
@@ -61,6 +78,7 @@ def send_protocol(sender, receiver_id, message):
     global finish_list
     if sender.is_gateway:
         finish_list.append(message + [(sender.id, sender.env.now)])
+        generate_draw_network(sender.graph, transmit = True)
         sender.message_transmitted_alert.succeed()
         return sender.message_transmitted_alert
     node = sender.graph.nodes[receiver_id]['node']
@@ -70,6 +88,7 @@ def send_protocol(sender, receiver_id, message):
         else:
             for recv_id in node.receiver_lists.keys():
                 node.receiver_lists[recv_id].append(message + [(receiver_id, sender.env.now)])
+        generate_draw_network(sender.graph, sender = sender.id, receiver = receiver_id, transmit = True)
         node.message_received_alert.succeed()
         sender.message_transmitted_alert.succeed()  # placeholder for ACK
     return sender.message_transmitted_alert
@@ -86,6 +105,7 @@ def receive_protocol(receiver):
                 for recv_id in receiver.receiver_lists.keys():
                     receiver.receiver_lists[recv_id].append(
                             node.transmitting_message + [(receiver.id, receiver.env.now)])
+            generate_draw_network(receiver.graph, node.id, receiver.id, transmit = True)
             node.message_transmitted_alert.succeed()
             receiver.message_received_alert.succeed()
             break
@@ -291,6 +311,8 @@ def tree_tester(branch_factor = 2, height = 3, mq_length = 10, rx_sleep_ticks = 
     #                               graph.nodes[i]['node'].senders))
     # print()
     env.process(generate_multiple_messages(env, generator_nodes, ticks_between_packets))
+    global pos
+    pos = nx.graphviz_layout(graph, prog = 'dot')
     env.run(until = run_until)
     for node in graph.nodes:
         _node = graph.nodes[node]['node']
@@ -304,10 +326,14 @@ def tree_tester(branch_factor = 2, height = 3, mq_length = 10, rx_sleep_ticks = 
         print('\t\tMessage {} generated at: {}'.format(l[0][0], l[0][1]))
         print('\t\t\t(Node #, Time): {}'.format(l[1:]))
 
+    fig = plt.gcf()
+    anim = animation.FuncAnimation(fig, update_animation, frames = len(animation_frames), blit = False)
+    # anim.save('sim.html', writer='html',  savefig_kwargs={'facecolor':'white'}, fps=1)
+    plt.show()
 
 if __name__ == '__main__':
     sleep_rates = [100, 200, 400, 800, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000]
-    tree_tester(branch_factor = 3, run_until = 1000 * 60 * 60)
+    tree_tester(branch_factor = 2, run_until = 1000 * 60 * 60)
     # for rx_rate_i in range(len(sleep_rates)):
     #     for tx_rate_i in range(len(sleep_rates)):
     #         TX_SLEEP_RATE = sleep_rates[tx_rate_i]
