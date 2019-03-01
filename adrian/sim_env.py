@@ -29,8 +29,8 @@ def generate_draw_network(graph):
     plt.title('Iteration: {}'.format(iteration))
     nx.draw_networkx(graph, pos = pos,
                      node_color = [colors[graph.nodes[node]['node'].mode] for node in graph.nodes],
-                     edge_color = ['g' if graph[e[0]][e[1]]['on'] is True and graph.nodes[e[1]][
-                         'node'].mode == Node.Mode.rx else 'r' if graph[e[0]][e[1]]['on'] is True else 'k' for e in
+                     edge_color = ['g' if graph[e[0]][e[1]]['on'] and graph.nodes[e[0]][
+                         'node'].sending_to == e[1] else 'r' if graph[e[0]][e[1]]['on'] else 'k' for e in
                                    graph.edges])
     # plt.pause(1)
     plt.show()
@@ -174,7 +174,7 @@ class Node:
                 self.increment_timer(self.env.now - last)
                 # rx mode
                 self.mode = Node.Mode.rx
-                for e in self.graph.out_edges(self.id):
+                for e in self.graph.in_edges(self.id):
                     self.graph[e[0]][e[1]]['on'] = True  # allow transmission
                 last = self.env.now
                 self.message_received_alert = self.env.event()
@@ -184,7 +184,7 @@ class Node:
                 except AttributeError:
                     yield self.message_received_alert | self.env.timeout(self.receive_ticks)
                 self.message_received_alert = None
-                for e in self.graph.out_edges(self.id):
+                for e in self.graph.in_edges(self.id):
                     self.graph[e[0]][e[1]]['on'] = False  # disallow transmission
                 self.increment_timer(self.env.now - last)
                 # print('TESTING')
@@ -230,7 +230,7 @@ class Node:
                     self.increment_timer(self.env.now - last)
                     # rx mode
                     self.mode = Node.Mode.rx
-                    for e in self.graph.out_edges(self.id):
+                    for e in self.graph.in_edges(self.id):
                         self.graph[e[0]][e[1]]['on'] = True  # allow transmission
                     last = self.env.now
                     self.message_received_alert = self.env.event()
@@ -240,7 +240,7 @@ class Node:
                     except AttributeError:
                         yield self.message_received_alert | self.env.timeout(self.receive_ticks)
                     self.message_received_alert = None
-                    for e in self.graph.out_edges(self.id):
+                    for e in self.graph.in_edges(self.id):
                         self.graph[e[0]][e[1]]['on'] = False  # allow transmission
                     self.increment_timer(self.env.now - last)
 
@@ -324,7 +324,7 @@ def tree_tester(branch_factor = 2, height = 3, mq_length = 10, rx_sleep_ticks = 
             generator_nodes.append(node)
         graph.nodes[i]['node'] = node
     for i in graph.nodes:  # assign initial transmission edges
-        for e in graph.out_edges(i):
+        for e in graph.in_edges(i):
             graph[e[0]][e[1]]['on'] = False  # allow transmission
     # for i in graph.nodes:
     #     print('{}: {}, {}'.format(graph.nodes[i]['node'].id, graph.nodes[i]['node'].receivers,
