@@ -3,11 +3,15 @@ import string
 
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 import simpy
 from hierarchy_pos import hierarchy_pos
 
-colors = ['b', 'r', 'g']  # used to color nodes in animation
-animation_frames = []  # add frames in
+# from matplotlib.colors import ListedColormap
+
+# cmap = ListedColormap(['r', 'b', 'g'])
+colors = ['#ff0000', '#0000ff', '#00ff00']  # []
+nc_array = []  # add color array
 finish_list = []  # list of messages collected at gateway node
 
 fig = plt.gcf()
@@ -17,22 +21,31 @@ iteration = 0
 
 
 def generate_draw_network(graph):
-    # nodes = nx.draw_networkx_nodes(graph, pos = pos, node_color = [colors[graph.nodes[node]['node'].mode] for node
-    # in graph.nodes])
-    # edges = nx.draw_networkx_edges(graph, pos = pos, edge_color = ['g' if transmit and (sender, receiver) == e else
-    # 'r' for e in graph.edges])
     # animation_frames.append([nodes, edges, ])
     plt.clf()
     plt.axis('off')
     global iteration
     iteration += 1
     plt.title('Iteration: {}'.format(iteration))
-    nx.draw_networkx(graph, pos = pos,
-                     node_color = [colors[graph.nodes[node]['node'].mode] for node in graph.nodes],
-                     edge_color = ['g' if graph[e[0]][e[1]]['on'] and graph.nodes[e[0]][
-                         'node'].sending_to == e[1] else 'r' if graph[e[0]][e[1]]['on'] else 'k' for e in
-                                   graph.edges])
-    # plt.pause(1)
+    # nx.draw_networkx(graph, pos = pos,
+    #                  node_color = [colors[graph.nodes[node]['node'].mode] for node in graph.nodes],
+    #                  edge_color = ['g' if graph[e[0]][e[1]]['on'] and graph.nodes[e[0]][
+    #                      'node'].sending_to == e[1] else 'r' if graph[e[0]][e[1]]['on'] else 'k' for e in
+    #                                graph.edges])
+    # nodes = nx.draw_networkx_nodes(graph, pos = pos, node_color = [colors[graph.nodes[node]['node'].mode] for node
+    #                                                                in graph.nodes])
+    nodes = nx.draw_networkx_nodes(graph, pos = pos)
+    nodes.set_array(np.asarray([graph.nodes[node]['node'].mode * 100 for node in graph.nodes]))
+    # edges = nx.draw_networkx_edges(graph, pos = pos,
+    #                                edge_color = ['g' if graph.nodes[sender]['node'].sending_to == receiver and
+    #                                                     graph[sender][receiver]['on'] else
+    #                                              'k' for (sender, receiver) in graph.edges])
+    edges = nx.draw_networkx_edges(graph, pos = pos)
+    for (edge, color) in zip(edges, [
+            'g' if graph.nodes[sender]['node'].sending_to == receiver and graph[sender][receiver]['on'] else 'k' for
+            (sender, receiver) in graph.edges]):
+        edge.set_color(color)
+    labels = nx.draw_networkx_labels(graph, pos = pos)
     plt.show()
 
 
