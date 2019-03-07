@@ -1,28 +1,76 @@
 import random
 import string
 
-import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 import simpy
 from hierarchy_pos import hierarchy_pos
+from matplotlib.animation import FuncAnimation
 
-colors = ['b', 'g', 'r']  # used to color nodes in animation
-animation_frames = []  # add frames in
+# from matplotlib.colors import ListedColormap
+
+# cmap = ListedColormap(['r', 'b', 'g'])
+colors = ['#ff0000', '#0000ff', '#00ff00']  # []
+nc_array = []  # add color array
 finish_list = []  # list of messages collected at gateway node
 
+fig = plt.gcf()
+plt.axis('off')
 pos = None
+# iteration = 0
+
+node_frames = []
+edge_frames = []
+env_frames = []
 
 
-def generate_draw_network(graph, sender = 0, receiver = 0, transmit = False):
-    animation_frames.append(
-            nx.draw_networkx(graph, pos = pos,
-                             node_color = [colors[graph.nodes[node]['node'].mode] for node in graph.nodes],
-                             edge_color = ['g' if transmit and (sender, receiver) == e else 'r' for e in graph.edges]))
+def update(i, nodes, edges):
+    plt.title('Time: {}'.format(env_frames[i]))
+    nodes.set_array(node_frames[i])
+    for (edge, color) in zip(edges, edge_frames[i]):
+        edge.set_color(color)
 
 
-def update_animation(step):
-    return animation_frames[step]
+def generate_draw_network(env, graph, prolong = False):
+    # plt.clf()
+    # global iteration
+    # plt.title('Time: {}'.format(env.now))
+    node_frames.append(np.asarray([graph.nodes[node]['node'].mode * 1000 for node in graph.nodes]));
+    edge_frames.append(
+            ['g' if graph.nodes[sender]['node'].sending_to == receiver and graph[sender][receiver]['on'] else 'k' for
+             (sender, receiver) in graph.edges])
+    env_frames.append((env.now))
+    if prolong:
+        for i in range(100):
+            node_frames.append(node_frames[-1])
+            edge_frames.append(edge_frames[-1])
+            env_frames.append(env_frames[-1])
+    # nx.draw_networkx(graph, pos = pos,
+    #                  node_color = [colors[graph.nodes[node]['node'].mode] for node in graph.nodes],
+    #                  edge_color = ['g' if graph[e[0]][e[1]]['on'] and graph.nodes[e[0]][
+    #                      'node'].sending_to == e[1] else 'r' if graph[e[0]][e[1]]['on'] else 'k' for e in
+    #                                graph.edges])
+    # nodes = nx.draw_networkx_nodes(graph, pos = pos, node_color = [colors[graph.nodes[node]['node'].mode] for node
+    #                                                                in graph.nodes])
+    # nodes = nx.draw_networkx_nodes(graph, pos = pos)
+    # edges = nx.draw_networkx_edges(graph, pos = pos)
+    # labels = nx.draw_networkx_labels(graph, pos = pos)
+    # nodes.set_array(np.asarray([graph.nodes[node]['node'].mode * 100 for node in graph.nodes]))
+    # edges = nx.draw_networkx_edges(graph, pos = pos,
+    #                                edge_color = ['g' if graph.nodes[sender]['node'].sending_to == receiver and
+    #                                                     graph[sender][receiver]['on'] else
+    #                                              'k' for (sender, receiver) in graph.edges])
+    # for (edge, color) in zip(edges, [
+    #         'g' if graph.nodes[sender]['node'].sending_to == receiver and graph[sender][receiver]['on'] else 'k' for
+    #         (sender, receiver) in graph.edges]):
+    #     edge.set_color(color)
+    # plt.show()
+
+
+# def update_animation(i):
+#     repr(animation_frames[i])
+#     return animation_frames[i]
 
 
 def generate_message(env, start_node, ticks_between_packets):
@@ -79,19 +127,20 @@ def send_protocol(sender, receiver_id, message):
     global finish_list
     if sender.is_gateway:
         finish_list.append(message + [(sender.id, sender.env.now)])
-        generate_draw_network(sender.graph, transmit = True)
+        generate_draw_network(sender.env, sender.graph)
         sender.message_transmitted_alert.succeed()
         return sender.message_transmitted_alert
     node = sender.graph.nodes[receiver_id]['node']
-    if receiver_id in sender.graph[sender.id]:  # if this edge exists, then receiver is in RCV_MODE
+    if sender.graph[sender.id][receiver_id]['on'] is True:  # receiver is in RCV_MODE
         if node.is_gateway:  # if the recipient node is gateway, just append to finish_list
             finish_list.append(message + [(receiver_id, sender.env.now)])
         else:
             for recv_id in node.receiver_lists.keys():
                 node.receiver_lists[recv_id].append(message + [(receiver_id, sender.env.now)])
-        generate_draw_network(sender.graph, sender = sender.id, receiver = receiver_id, transmit = True)
+        generate_draw_network(sender.env, sender.graph, prolong = True)
         node.message_received_alert.succeed()
         sender.message_transmitted_alert.succeed()  # placeholder for ACK
+    generate_draw_network(sender.env, sender.graph)
     return sender.message_transmitted_alert
 
 
@@ -106,10 +155,11 @@ def receive_protocol(receiver):
                 for recv_id in receiver.receiver_lists.keys():
                     receiver.receiver_lists[recv_id].append(
                             node.transmitting_message + [(receiver.id, receiver.env.now)])
-            generate_draw_network(receiver.graph, node.id, receiver.id, transmit = True)
             node.message_transmitted_alert.succeed()
             receiver.message_received_alert.succeed()
+            generate_draw_network(receiver.env, receiver.graph, prolong = True)
             break
+    generate_draw_network(receiver.env, receiver.graph)
     return receiver.message_received_alert
 
 
@@ -158,8 +208,8 @@ class Node:
                 self.increment_timer(self.env.now - last)
                 # rx mode
                 self.mode = Node.Mode.rx
-                for i in self.senders:
-                    self.graph.add_edge(i, self.id)  # add these edges to allow transmission
+                for e in self.graph.in_edges(self.id):
+                    self.graph[e[0]][e[1]]['on'] = True  # allow transmission
                 last = self.env.now
                 self.message_received_alert = self.env.event()
                 try:
@@ -168,8 +218,8 @@ class Node:
                 except AttributeError:
                     yield self.message_received_alert | self.env.timeout(self.receive_ticks)
                 self.message_received_alert = None
-                for i in self.senders:
-                    self.graph.remove_edge(i, self.id)  # end receive mode
+                for e in self.graph.in_edges(self.id):
+                    self.graph[e[0]][e[1]]['on'] = False  # disallow transmission
                 self.increment_timer(self.env.now - last)
                 # print('TESTING')
                 # for k, v in self.receiver_lists.items():
@@ -214,8 +264,8 @@ class Node:
                     self.increment_timer(self.env.now - last)
                     # rx mode
                     self.mode = Node.Mode.rx
-                    for i in self.senders:
-                        self.graph.add_edge(i, self.id)  # add these edges to allow transmission
+                    for e in self.graph.in_edges(self.id):
+                        self.graph[e[0]][e[1]]['on'] = True  # allow transmission
                     last = self.env.now
                     self.message_received_alert = self.env.event()
                     try:
@@ -224,8 +274,8 @@ class Node:
                     except AttributeError:
                         yield self.message_received_alert | self.env.timeout(self.receive_ticks)
                     self.message_received_alert = None
-                    for i in self.senders:
-                        self.graph.remove_edge(i, self.id)  # end receive mode
+                    for e in self.graph.in_edges(self.id):
+                        self.graph[e[0]][e[1]]['on'] = False  # allow transmission
                     self.increment_timer(self.env.now - last)
 
     def increment_timer(self, time):
@@ -307,8 +357,9 @@ def tree_tester(branch_factor = 2, height = 3, mq_length = 10, rx_sleep_ticks = 
             node.is_generator = True
             generator_nodes.append(node)
         graph.nodes[i]['node'] = node
-    for i in graph.nodes:  # remove the edges for simulation
-        graph.remove_edges_from(list(graph.out_edges(i)))  # need to create separate copy of the out_edges
+    for i in graph.nodes:  # assign initial transmission edges
+        for e in graph.in_edges(i):
+            graph[e[0]][e[1]]['on'] = False  # allow transmission
     # for i in graph.nodes:
     #     print('{}: {}, {}'.format(graph.nodes[i]['node'].id, graph.nodes[i]['node'].receivers,
     #                               graph.nodes[i]['node'].senders))
@@ -327,12 +378,15 @@ def tree_tester(branch_factor = 2, height = 3, mq_length = 10, rx_sleep_ticks = 
         print('\t\tMessage {} generated at: {}'.format(l[0][0], l[0][1]))
         print('\t\t\t(Node #, Time): {}'.format(l[1:]))
 
-    fig = plt.gcf()
-    anim = animation.FuncAnimation(fig, update_animation, frames = len(animation_frames), blit = False)
-    anim.save('sim.html', writer = 'html', savefig_kwargs = {
-            'facecolor': 'white'
-    }, fps = 1)
-    # plt.show()
+    nodes = nx.draw_networkx_nodes(graph, pos = pos)
+    edges = nx.draw_networkx_edges(graph, pos = pos)
+    labels = nx.draw_networkx_labels(graph, pos = pos)
+    anim = FuncAnimation(fig, update, interval = 5, frames = len(env_frames), fargs = (nodes, edges), repeat = False)
+    plt.show()
+    # anim.save('sim.html', writer = 'html', savefig_kwargs = {
+    #         'facecolor': 'white'
+    # }, fps = 1)
+
 
 if __name__ == '__main__':
     sleep_rates = [100, 200, 400, 800, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 8000]
