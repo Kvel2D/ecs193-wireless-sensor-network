@@ -1,0 +1,62 @@
+First I investigate the serial monitor problem.
+
+If you print anything to serial and record the time that the serial section of the code takes to run you will see that it is usually 2 or 0 *when the serial monitor is open*
+If you close the monitor the serial section will take much much longer, i'm guessing that it is because there's some kind of handshaking going on and arduino is stuck because the pc doesn't accept anything
+
+Should keep this in mind for the future, especially for deployment
+
+Next I find a good timeout value for tx. This is the timeout that determines how long tx listens for the ACK. I do this by making RX node listen continously without delay and TX node transmit periodically. I set the TX period to 100 for testing.
+
+timeout=5
+    mostly successes, few fails
+
+It should be fine to go really low, right?
+
+timeout=3
+    nope, fails only
+
+
+Next I have an idea to measure how long the rx section takes to run. It takes 4 with rounding errors + serial overhead. Timeout of 3 failing always now makes sense since rx just doesn't have enough time to send the ACK back.
+
+timeout=4
+    occasional fails
+
+For consistency and easier debugging I think timeout of 5 is best. It will be a big pain if there are random fails because of too aggressively low timeout and we would have to distinguish between those fails and fails caused by something else.
+
+Now I will try other TX periods to confirm that timeout of 5 works well.
+
+period=20
+    seems fine, about same ratio of fails as period=100
+    still too many fails though
+
+
+timeout=6
+    fail eveyr ~5s, with 50 cycles per second, that's 1fail/250 success => decent
+
+
+
+Forgot to break after succesful receive in RX!
+    decreased fails dramatically, but there are still some
+
+coupled with break additon, timeout=6 failure rate is only ~1/200
+
+timeout=7 doesn't make much of a difference though
+
+
+    
+
+Time to alter the simulation
+
+tx full sendtoWait with max timeout(meaning no ack received) takes 8, so 2 for actual sending and 6 for the ack timeout
+
+rx always takes 10 ticks(we determine it)
+
+let's simplify to say that tx always does full ack timeout
+    it only is interrupted in successes which are rare
+
+    same thing for rx, don't bother factoring in the ack transmission because it barely happens
+
+simplify rx to now succeed if it's awake when tx is transmitting
+
+
+tx=400,rx=2000 achieves 1min transmission, we probably need to stay safe for now to not get queue overflows during testing
