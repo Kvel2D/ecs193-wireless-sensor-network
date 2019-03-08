@@ -5,8 +5,8 @@
 #include <stdlib.h>
 // cite from Efstathios Chatzikyriakidis
 // from https://playground.arduino.cc/Code/QueueArray
-#include <QueueArray.h> 
-
+//#include <QueueArray.h> 
+#include <queue>
 
 #define RF69_FREQ 434.0 //915.0
 
@@ -135,7 +135,8 @@ int16_t packet_number = 0;
 long total_sleep_time = 0;
 int successful_packet_count = 0;
 char reading[5];
-QueueArray <Packet> packet_queue;
+template <class Packet> class queue packet_queue;
+//QueueArray <Packet> packet_queue;
 int tx_result = 0;
 
 void loop() {
