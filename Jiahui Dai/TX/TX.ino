@@ -111,17 +111,18 @@ class Packet{
         setPacketAge(int temp_packet_age){
             packet_age = temp_packet_age;
         }
+        void creatPacket(char* radiopacket){
+            dtostrf(reading,5, 2, radiopacket);
+            radiopacket[5] = ',';
+            itoa(packet_number, radiopacket + 6, 10);
+            radiopacket[(int)log10(packet_number) + 7] = ',';
+            itoa(packet_age, radiopacket + 8 + (int)log10(packet_number), 10);
+            
+        }
 };
 
 
-void creatPacket(char* radiopacket, float reading, int packet_number, int packet_age){
-    dtostrf(reading,5, 2, radiopacket);
-    radiopacket[5] = ',';
-    itoa(packet_number, radiopacket + 6, 10);
-    radiopacket[(int)log10(packet_number) + 7] = ',';
-    itoa(packet_age, radiopacket + 8 + (int)log10(packet_number), 10);
-    
-}
+
 
 
 
@@ -140,6 +141,7 @@ int tx_result = 0;
 void loop() {
     long sleep_time = (long)expovariate(50.0f);
     Packet new_packet;
+    // Is the sendsor need few ms to warm up?
     if(millis()- sensor_wakeup_time >= 1000){ // 1000 = 1 sec
         // the sensor should wake up
         new_packet.setAllValue(read_temp(),packet_number, 0);
@@ -153,28 +155,28 @@ void loop() {
     delay(sleep_time);
     total_sleep_time += sleep_time;
 
+    unsigned long send_tx = millis();
     rf69.setModeIdle();
 
     if(!packet_queue.isEmpty()){
-        char radiopacket[20];
-        // for this queue library, we must take packet out from the queue, so we can assign value in the packet
+        char radiopacket[62];
+        // for this queue library, we must take packet out from the queue, so we can change value in the packet
         for(int i = packet_queue.count(); i>0; i--){
             new_packet = packet_queue.peek();
             packet_queue.pop();
             new_packet.setPacketAge(new_packet.packet_age + sleep_time);
             packet_queue.push(new_packet);
         }
-        Serial.println(packet_queue.peek().packet_age);
-        creatPacket(radiopacket, packet_queue.peek().reading, packet_queue.peek().packet_number, packet_queue.peek().packet_age);
-        //Serial.println(radiopacket);
+        packet_queue.peek().creatPacket(radiopacket);
+        //Serial.println(packet_queue.count());
+        Serial.println(radiopacket);
         // Send and try to receive ack
         tx_result = rf69_manager.sendtoWait((uint8_t *)radiopacket, strlen(radiopacket), DEST_ADDRESS);
     }
-
-
     
-
     unsigned long end_tx = millis();
+    //Serial.println(end_tx-send_tx);
+    
     
     if (tx_result) {
         successful_packet_count += 1;
