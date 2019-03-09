@@ -4,9 +4,9 @@
 #include <math.h>
 #include <stdlib.h>
 // cite from Efstathios Chatzikyriakidis
-// from https://playground.arduino.cc/Code/QueueArray
-#include <QueueArray.h> 
-//#include <queue.h> No such file or directory
+// from https://playground.arduino.cc/Code/QueueList
+#include <QueueList.h> 
+//#include <queue.h> //No such file or directory
 
 #define RF69_FREQ 434.0 //915.0
 
@@ -135,7 +135,7 @@ int16_t packet_number = 0;
 long total_sleep_time = 0;
 int successful_packet_count = 0;
 char reading[5];
-QueueArray <Packet> packet_queue;
+QueueList <Packet> packet_queue;
 int tx_result = 0;
 
 void loop() {
@@ -160,7 +160,8 @@ void loop() {
 
     if(!packet_queue.isEmpty()){
         char radiopacket[62];
-        // for this queue library, we must take packet out from the queue, so we can change value in the packet
+        // for this queue library, we must take packet out from the queue, so we can change value in the packet. Ex: packet_queue.peek().packet_age = 0 doesn't work
+        // change the packet_age for every paclet inside the queue
         for(int i = packet_queue.count(); i>0; i--){
             new_packet = packet_queue.peek();
             packet_queue.pop();
@@ -168,7 +169,7 @@ void loop() {
             packet_queue.push(new_packet);
         }
         packet_queue.peek().creatPacket(radiopacket);
-        //Serial.println(packet_queue.count());
+        Serial.println(packet_queue.count());
         Serial.println(radiopacket);
         // Send and try to receive ack
         tx_result = rf69_manager.sendtoWait((uint8_t *)radiopacket, strlen(radiopacket), DEST_ADDRESS);
