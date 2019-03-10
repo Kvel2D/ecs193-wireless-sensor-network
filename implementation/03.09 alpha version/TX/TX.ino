@@ -21,7 +21,7 @@
 #define RFM69_RST     4
 #define LED           13
 
-#define PACKET_PERIOD 1000 * 15
+#define PACKET_PERIOD (1000 * 60 * 5)
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, MY_ADDRESS);
@@ -126,10 +126,11 @@ void setup()
     setup_end_time = millis();
     sensor_wakeup_time = millis();
 
-//    packet_t new_packet;
-//    setAllValue(&new_packet, read_temp(),packet_number, 0);
-//    packet_queue.push(new_packet);
-//    packet_number++;
+  
+    packet_t new_packet;
+    setAllValue(&new_packet, read_temp(),packet_number, 0);
+    packet_queue.push(new_packet);
+    packet_number++;
     
 }
 
@@ -154,7 +155,7 @@ float read_temp(void){
 
 void loop() {
     bool tx_result = false;
-    long sleep_time = (long)expovariate(100.0f);
+    long sleep_time = (long)expovariate(400.0f);
     sleep_time = convert_to_sleepydog_time(sleep_time);
     sleep_log = (uint16_t) sleep_time;
     
@@ -165,12 +166,16 @@ void loop() {
         // the sensor should wake up
         //new_packet.setAllValue(read_temp(),packet_number, 0);
         //setAllValue(new_packet, read_temp(), packet_number, 0);
-        //float temp = read_temp();
-        //Serial.print("temperature: ");
-        //Serial.println(temp);
-        setAllValue(&new_packet, read_temp(), packet_number, 0);
-        packet_queue.push(new_packet);
-        packet_number++;
+        if(packet_queue.count() < 20) {
+          setAllValue(&new_packet, read_temp(), packet_number, 0);
+          packet_queue.push(new_packet);
+          Serial.print("Packet created: ");
+          Serial.println(packet_number);
+          packet_number++;
+
+        } else {
+          Serial.println("Queue full");
+        }
         sensor_wakeup_time = millis();
     }
     

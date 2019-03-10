@@ -81,7 +81,7 @@ float expovariate(float rate) {
 typedef struct packet_t {
     float reading;
     int packet_number;
-    int packet_age;
+    uint32_t packet_age;
 } packet_t;
 
 void setAllValue(struct packet_t p, float temp_reading, int temp_packet_number, int temp_packet_age){
@@ -161,7 +161,7 @@ void loop() {
     } // end while()
     
     unsigned long total_time = millis() - setup_end_time;
-    uint8_t total_time_ms = total_time % 1000;
+    long total_time_ms = total_time % 1000;
     total_time =  total_time / 1000;
 
     sprintf(log_output, "%u  %d  %d  %lu  %d", sleep_log, available_loop, recv_time, total_time, total_time_ms);  
