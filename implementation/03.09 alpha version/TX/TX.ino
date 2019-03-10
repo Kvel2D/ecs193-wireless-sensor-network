@@ -42,7 +42,7 @@ char log_output[32];
 typedef struct packet_t {
     float reading;
     int packet_number;
-    int packet_age;
+    uint32_t packet_age;
 } packet_t;
 
 void setAllValue(struct packet_t *p, float temp_reading, int temp_packet_number, int temp_packet_age){
@@ -154,7 +154,7 @@ float read_temp(void){
 
 void loop() {
     bool tx_result = false;
-    long sleep_time = (long)expovariate(50.0f);
+    long sleep_time = (long)expovariate(100.0f);
     sleep_time = convert_to_sleepydog_time(sleep_time);
     sleep_log = (uint16_t) sleep_time;
     
@@ -208,6 +208,8 @@ void loop() {
     //Packet popped;
     packet_t popped;
     unsigned long total_time = millis() - setup_end_time;
+    long total_time_ms = total_time % 1000;
+    total_time = total_time / 1000;
     if (tx_result) {
         successful_packet_count += 1;
         popped = packet_queue.pop();
@@ -215,7 +217,7 @@ void loop() {
 
         total_time = millis() - setup_end_time;
 
-        sprintf(log_output, "%u  %d  %u", sleep_log, tx_time, total_time);
+        sprintf(log_output, "%u  %d  %lu  %u", sleep_log, tx_time, total_time, total_time_ms);
         Serial.print(log_output);
         Serial.print("  "); Serial.print(popped.packet_age);
         Serial.print("  "); Serial.print(popped.packet_number);
@@ -223,7 +225,7 @@ void loop() {
         tx_result = false;
     } else {
         // Serial.println("Send fail (no ack)");
-        sprintf(log_output, "%u  %d  %u", sleep_log, tx_time, total_time);
+        sprintf(log_output, "%u  %d  %lu  %u", sleep_log, tx_time, total_time, total_time_ms);
         Serial.println(log_output);  
     
     }

@@ -116,7 +116,7 @@ char log_output[32];
 int timer = 0;
 
 void loop() {
-    long sleep_time = expovariate(500.0f);
+    long sleep_time = expovariate(2000.0f);
     sleep_time = convert_to_sleepydog_time(sleep_time);
     rf69.sleep();
     delay(sleep_time);
@@ -129,6 +129,7 @@ void loop() {
     uint8_t available_loop = 10;
     unsigned long start_recv = 0;
     uint8_t recv_time = 0;
+    bool received = false;
     
     //Packet p;
     packet_t p;
@@ -148,24 +149,28 @@ void loop() {
 //                Serial.print(" [RSSI :");
 //                Serial.print(rf69.lastRssi());
 //                Serial.print("] : ");
-                Serial.println((char*)buffer);
+                //Serial.println((char*)buffer);
                 memcpy(&p, buffer, sizeof(buffer));
                 recv_time = millis() - start_recv;
+                received = true;
+                break;
             }
-            break;
+            
         }
         available_loop = millis() - start_time;
     } // end while()
     
-    long total_time = millis() - setup_end_time;
-//    Serial.print("total sleep time ="); Serial.println(total_sleep_time);
-//    Serial.print("total awake time ="); Serial.println(total_time - total_sleep_time);
-//    Serial.print("total time ="); Serial.println(total_time);
+    unsigned long total_time = millis() - setup_end_time;
+    uint8_t total_time_ms = total_time % 1000;
+    total_time =  total_time / 1000;
 
-//    Serial.print(sleep_log); Serial.print(", "); 
-//    Serial.print(available_loop); Serial.print(", "); 
-//    Serial.println(recv_time); 
-
-    sprintf(log_output, "%u  %d  %d  %u  %s", sleep_log, available_loop, recv_time, total_time, (char*)buffer);
-    Serial.println(log_output);  
+    sprintf(log_output, "%u  %d  %d  %lu  %d", sleep_log, available_loop, recv_time, total_time, total_time_ms);  
+    if(received){
+      Serial.print(log_output);
+      Serial.print("  "); Serial.print(p.packet_age);
+      Serial.print("  "); Serial.print(p.packet_number);
+      Serial.print("  "); Serial.println(p.reading);
+    } else {
+      Serial.println(log_output);
+    }
 }
