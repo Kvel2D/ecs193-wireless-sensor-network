@@ -20,8 +20,8 @@
 
 struct packet_t {
     float reading;
-    int number;
     uint32_t age;
+    uint16_t number;
 };
 
 #define QUEUE_SIZE_MAX 20
@@ -62,7 +62,6 @@ uint32_t total_sleep_time = 0;
 char reading[5];
 Queue packet_queue;
 
-uint16_t sleep_log = 0;
 uint32_t start_time = millis();
 uint8_t tx_time = 0;
 
@@ -136,9 +135,9 @@ void setup()
     sensor_wakeup_time = millis();
 
     packet_t new_packet = {
-        read_temp(),
-        packet_number,
-        0,
+        .reading = read_temp(),
+        .age = 0,
+        .number = packet_number,
     };
     packet_queue.push(new_packet);
     packet_number++;
@@ -166,14 +165,13 @@ void loop() {
     bool tx_result = false;
     uint32_t sleep_time = expovariate(400.0f);
     sleep_time = convert_to_sleepydog_time(sleep_time);
-    sleep_log = (uint16_t) sleep_time;
     
     if (millis() - sensor_wakeup_time >= PACKET_PERIOD) {
         if (packet_queue.size < QUEUE_SIZE_MAX) {
             packet_t new_packet = {
-                read_temp(),
-                packet_number,
-                0,
+                .reading = read_temp(),
+                .age = 0,
+                .number = packet_number,
             };
             packet_queue.push(new_packet);
 
@@ -213,7 +211,7 @@ void loop() {
         Serial.println("Send success");
     }
 
-    Serial.print(sleep_log); 
+    Serial.print(sleep_time); 
     Serial.print("  "); 
     Serial.print(tx_time); 
     Serial.print("  "); 

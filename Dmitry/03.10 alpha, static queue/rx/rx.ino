@@ -15,10 +15,14 @@
 #define RFM69_RST     4
 #define LED           13
 
+struct packet_t {
+    float reading;
+    uint32_t age;
+    uint16_t number;
+};
+
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, MY_ADDRESS);
-
-uint32_t setup_end_time = 0;
 
 void setup() 
 {
@@ -69,19 +73,12 @@ void setup()
     // convert to real time for readability
     // packet includes time passed 
     Serial.println("sleep_time  available_loop  recv_time  total_time");
-    setup_end_time = millis();
 }
 
 float expovariate(float rate) {
     float k = -((float) random(0, RAND_MAX) / (RAND_MAX + 1));
     return -log(1.0f - k) / (1 / rate);
 }
-
-struct packet_t {
-    float reading;
-    uint16_t number;
-    uint32_t age;
-};
 
 uint32_t convert_to_sleepydog_time(uint32_t time) {
     uint32_t remainder = time;
@@ -106,7 +103,6 @@ void loop() {
     rf69.sleep();
     delay(sleep_time);
     total_sleep_time += sleep_time;
-    uint16_t sleep_log = (uint16_t) sleep_time;
 
     rf69.setModeRx();
 
@@ -143,11 +139,11 @@ void loop() {
         available_loop = millis() - start_time;
     } // end while()
     
-    uint32_t total_time = millis() - setup_end_time;
+    uint32_t total_time = millis();
     uint32_t total_time_ms = total_time % 1000;
     total_time =  total_time / 1000;
 
-    Serial.print(sleep_log); 
+    Serial.print(sleep_time); 
     Serial.print("  "); 
     Serial.print(available_loop); 
     Serial.print("  "); 
