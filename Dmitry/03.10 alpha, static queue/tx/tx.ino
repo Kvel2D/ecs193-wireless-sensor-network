@@ -56,29 +56,26 @@ struct Queue {
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, MY_ADDRESS);
 
-int setup_end_time = 0;
-unsigned long sensor_wakeup_time = 0;
+uint32_t sensor_wakeup_time = 0;
 int16_t packet_number = 0;
-long total_sleep_time = 0;
-int successful_packet_count = 0;
+uint32_t total_sleep_time = 0;
 char reading[5];
 Queue packet_queue;
 
 uint16_t sleep_log = 0;
-unsigned long start_time = millis();
+uint32_t start_time = millis();
 uint8_t tx_time = 0;
-char log_output[32];
 
 float expovariate(float rate) {
     float k = -(((float) random(0, RAND_MAX)) / (RAND_MAX + 1));
     return -log(1.0f - k) / (1 / rate);
 }
 
-long convert_to_sleepydog_time(long time) {
-    long remainder = time;
+uint32_t convert_to_sleepydog_time(uint32_t time) {
+    uint32_t remainder = time;
     remainder = remainder % 250;
     remainder = remainder % 15;
-    long sleepydog_time = time - remainder;
+    uint32_t sleepydog_time = time - remainder;
     if (sleepydog_time < 15) {
         sleepydog_time = 15;
     }
@@ -136,7 +133,6 @@ void setup()
 
     Serial.print("RFM69 radio @");  
     Serial.print((int)RF69_FREQ);  Serial.println(" MHz");
-    setup_end_time = millis();
     sensor_wakeup_time = millis();
 
     packet_t new_packet = {
@@ -168,7 +164,7 @@ float read_temp(void){
 
 void loop() {
     bool tx_result = false;
-    long sleep_time = (long)expovariate(400.0f);
+    uint32_t sleep_time = expovariate(400.0f);
     sleep_time = convert_to_sleepydog_time(sleep_time);
     sleep_log = (uint16_t) sleep_time;
     
@@ -194,12 +190,12 @@ void loop() {
     delay(sleep_time);
     total_sleep_time += sleep_time;
 
-    unsigned long send_tx = millis();
+    uint32_t send_tx = millis();
     tx_time = 0;
     rf69.setModeIdle();
 
     if (packet_queue.size > 0) {
-        for (size_t i = 0; i < packet_queue.size; i++) {
+        for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
             // TODO: need to add awake time as well
             packet_queue.data[i].age += sleep_time;
         }
@@ -209,26 +205,36 @@ void loop() {
         tx_time = millis() - start_time;
     }
     
-    unsigned long total_time = millis() - setup_end_time;
-    long total_time_ms = total_time % 1000;
+    uint32_t total_time = millis();
+    uint32_t total_time_ms = total_time % 1000;
     total_time = total_time / 1000;
+
     if (tx_result) {
-        successful_packet_count += 1;
-        packet_t popped = packet_queue.pop();
         Serial.println("Send success");
-
-        total_time = millis() - setup_end_time;
-
-        sprintf(log_output, "%u  %d  %lu  %u", sleep_log, tx_time, total_time, total_time_ms);
-        Serial.print(log_output);
-        Serial.print("  "); Serial.print(popped.age);
-        Serial.print("  "); Serial.print(popped.number);
-        Serial.print("  "); Serial.println(popped.reading);
-        tx_result = false;
-    } else {
-        // Serial.println("Send fail (no ack)");
-        sprintf(log_output, "%u  %d  %lu  %u", sleep_log, tx_time, total_time, total_time_ms);
-        Serial.println(log_output);  
-
     }
+
+    Serial.print(sleep_log); 
+    Serial.print("  "); 
+    Serial.print(tx_time); 
+    Serial.print("  "); 
+    Serial.print(total_time); 
+    Serial.print("  "); 
+    Serial.print(total_time_ms);
+
+    if (tx_result) {
+        tx_result = false;
+
+        packet_t popped = packet_queue.pop();
+
+        total_time = millis();
+        
+        Serial.print("  ");
+        Serial.print(popped.age);
+        Serial.print("  ");
+        Serial.print(popped.number);
+        Serial.print("  ");
+        Serial.print(popped.reading);
+    }
+
+    Serial.println("");
 }

@@ -1,0 +1,31 @@
+memcpy(&p, buffer, sizeof(buffer))
+    "sizeof(buffer)" needs to be "sizeof(packet)"
+
+    writes 0's to some memory after variables on the stack past packet struct
+
+remove buggy packet methods
+
+very high chance that sprintf goes out of bounds too
+    probably into loop() stack
+
+    unsigned long in a string can be up to 10 digits
+    10 * 5 + 4 * 2 = 58 max possible size of string
+
+setPacketAge() somehow doesn't handle unsigned int correctly and treats it as 2 byte int at some point, causing an overflow
+    replacing with .age += sleep_time fixes it
+
+should just use stdint types for everything, to make types more obvious
+
+removed setup_end_time
+    doesnt take that much but adds mental clutter
+
+TODO:
+    really need to move common stuff outside
+    for now can be in arduino libraries
+        relative paths, etc doesn't work because of Arduino IDE
+    later will be better when rx/tx is in the same file
+
+    convert sleepydog
+    packet_t definition
+    expovariate
+    some logging stuff

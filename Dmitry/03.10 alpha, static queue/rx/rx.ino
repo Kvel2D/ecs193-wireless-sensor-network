@@ -18,8 +18,7 @@
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, MY_ADDRESS);
 
-unsigned long setup_end_time = 0;
-
+uint32_t setup_end_time = 0;
 
 void setup() 
 {
@@ -78,28 +77,17 @@ float expovariate(float rate) {
     return -log(1.0f - k) / (1 / rate);
 }
 
-
-typedef struct packet_t {
+struct packet_t {
     float reading;
-    int packet_number;
-    uint32_t packet_age;
-} packet_t;
+    uint16_t number;
+    uint32_t age;
+};
 
-void setAllValue(struct packet_t p, float temp_reading, int temp_packet_number, int temp_packet_age){
-    p.reading = temp_reading;
-    p.packet_number = temp_packet_number;
-    p.packet_age= temp_packet_age;
-}
-
-void setPacketAge(struct packet_t p, int temp_packet_age){
-    p.packet_age = temp_packet_age;
-}
-
-long convert_to_sleepydog_time(long time) {
-    long remainder = time;
+uint32_t convert_to_sleepydog_time(uint32_t time) {
+    uint32_t remainder = time;
     remainder = remainder % 250;
     remainder = remainder % 15;
-    long sleepydog_time = time - remainder;
+    uint32_t sleepydog_time = time - remainder;
     if (sleepydog_time < 15) {
         sleepydog_time = 15;
     }
@@ -107,14 +95,10 @@ long convert_to_sleepydog_time(long time) {
 }
 
 
-unsigned long total_sleep_time = 0;
+uint32_t total_sleep_time = 0;
 
 int16_t packetnum = 0;
 uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
-uint8_t log_raw[10];
-char log_output[32];
-
-int timer = 0;
 
 void loop() {
     long sleep_time = expovariate(2000.0f);
@@ -126,15 +110,13 @@ void loop() {
 
     rf69.setModeRx();
 
-    unsigned long start_time = millis();
+    uint32_t start_time = millis();
     uint8_t available_loop = 10;
-    unsigned long start_recv = 0;
+    uint32_t start_recv = 0;
     uint8_t recv_time = 0;
     bool received = false;
     
-    //Packet p;
     packet_t p;
-    // NOTE: maybe millis() thousands of times?
     while (millis() - start_time < 10) {
         if (rf69_manager.available()) {
             available_loop = millis() - start_time;
@@ -146,12 +128,12 @@ void loop() {
                 // zero out remaining string
                 buffer[len] = 0; 
 
-//                Serial.print("Got packet from #"); Serial.println(from);
-//                Serial.print(" [RSSI :");
-//                Serial.print(rf69.lastRssi());
-//                Serial.print("] : ");
-                //Serial.println((char*)buffer);
-                memcpy(&p, buffer, sizeof(buffer));
+                // Serial.print("Got packet from #"); Serial.println(from);
+                // Serial.print(" [RSSI :");
+                // Serial.print(rf69.lastRssi());
+                // Serial.print("] : ");
+                // Serial.println((char*)buffer);
+                memcpy(&p, buffer, sizeof(packet_t));
                 recv_time = millis() - start_recv;
                 received = true;
                 break;
@@ -161,17 +143,28 @@ void loop() {
         available_loop = millis() - start_time;
     } // end while()
     
-    unsigned long total_time = millis() - setup_end_time;
-    long total_time_ms = total_time % 1000;
+    uint32_t total_time = millis() - setup_end_time;
+    uint32_t total_time_ms = total_time % 1000;
     total_time =  total_time / 1000;
 
-    sprintf(log_output, "%u  %d  %d  %lu  %d", sleep_log, available_loop, recv_time, total_time, total_time_ms);  
-    if(received){
-      Serial.print(log_output);
-      Serial.print("  "); Serial.print(p.packet_age);
-      Serial.print("  "); Serial.print(p.packet_number);
-      Serial.print("  "); Serial.println(p.reading);
-    } else {
-      Serial.println(log_output);
+    Serial.print(sleep_log); 
+    Serial.print("  "); 
+    Serial.print(available_loop); 
+    Serial.print("  "); 
+    Serial.print(recv_time); 
+    Serial.print("  "); 
+    Serial.print(total_time); 
+    Serial.print("  "); 
+    Serial.print(total_time_ms); 
+
+    if (received) {
+        Serial.print("  ");
+        Serial.print(p.age);
+        Serial.print("  ");
+        Serial.print(p.number);
+        Serial.print("  ");
+        Serial.print(p.reading);
     }
+
+    Serial.println("");
 }
