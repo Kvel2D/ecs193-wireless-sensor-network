@@ -69,7 +69,7 @@ int16_t packetnum = 0;
 uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
 
 void loop() {
-    long sleep_time = expovariate(2000.0f);
+    uint32_t sleep_time = expovariate(2000.0f);
     sleep_time = convert_to_sleepydog_time(sleep_time);
     rf69.sleep();
     delay(sleep_time);
