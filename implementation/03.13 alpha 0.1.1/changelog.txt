@@ -24,13 +24,5 @@ should just use stdint types for everything, to make types more obvious
 removed setup_end_time
     doesnt take that much but adds mental clutter
 
-TODO:
-    really need to move common stuff outside
-    for now can be in arduino libraries
-        relative paths, etc doesn't work because of Arduino IDE
-    later will be better when rx/tx is in the same file
-
-    convert sleepydog
-    packet_t definition
-    expovariate
-    some logging stuff
+moved out shared code to shared.h
+    currently needs to be copied manually into rx/tx folders
