@@ -98,7 +98,7 @@ void setup()
     rf69.setEncryptionKey(key);
 
     rf69_manager.setRetries(0);
-    rf69_manager.setTimeout(6);
+    rf69_manager.setTimeout(10);
 
     Serial.print("RFM69 radio @");  
     Serial.print((int)RF69_FREQ);  Serial.println(" MHz");

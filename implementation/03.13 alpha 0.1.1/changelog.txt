@@ -26,3 +26,9 @@ removed setup_end_time
 
 moved out shared code to shared.h
     currently needs to be copied manually into rx/tx folders
+
+--------------------------------------
+03.14.19
+
+rf69_manager.setTimeout(6);
+    changing the timeout from 6 to 10 to minimize Fail-to-receive-ACK situation
