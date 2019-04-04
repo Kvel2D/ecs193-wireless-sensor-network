@@ -1,0 +1,40 @@
+CHANGELOG
+
+--------------------------------------
+0.1.2 04.03.19
+
+blink led at the end of the loop() every minute
+    this will help to distinguish between board or connection/terminal issues when terminal stops working
+
+--------------------------------------
+03.14.19
+
+rf69_manager.setTimeout(6) -> (10)
+    change timeout from 6 to 10 to minimze fail-to-receive-ack situations
+
+--------------------------------------
+0.1.1 03.13.19
+
+memcpy(&p, buffer, sizeof(buffer))
+    "sizeof(buffer)" needs to be "sizeof(packet)"
+
+    writes 0's to some memory after variables on the stack past packet struct
+
+very high chance that sprintf goes out of bounds too
+    probably into loop() stack
+
+    unsigned long in a string can be up to 10 digits
+    10 * 5 + 4 * 2 = 58 max possible size of string
+
+    use Serial.print() instead
+
+setPacketAge() somehow doesn't handle unsigned int correctly and treats it as 2 byte int at some point, causing an overflow
+    replacing with .age += sleep_time fixes it
+
+should just use stdint types for everything, to make types more obvious
+
+removed setup_end_time
+    doesnt take that much but adds mental clutter
+
+moved out shared code to shared.h
+    currently needs to be copied manually into rx/tx folders
