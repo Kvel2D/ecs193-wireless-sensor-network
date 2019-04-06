@@ -153,13 +153,11 @@ void loop() {
         sensor_wakeup_time = millis();
     }
 
-    rf69.sleep();
     delay(sleep_time);
     total_sleep_time += sleep_time;
 
     uint32_t send_tx = millis();
     tx_time = 0;
-    rf69.setModeIdle();
 
     if (packet_queue.size > 0) {
         for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
@@ -168,7 +166,18 @@ void loop() {
         }
         start_time = millis();
         Packet packet = packet_queue.front();
+
+        //
+        // Transmit
+        //
+        // Turn on radio        
+        rf69.setModeIdle();
+        
         tx_result = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), DEST_ADDRESS);
+
+        // Turn off radio
+        rf69.sleep();
+
         tx_time = millis() - start_time;
     }
     
@@ -206,5 +215,5 @@ void loop() {
 
     Serial.println("");
 
-    blink_led_periodically(sleep_time);
+    blink_led_periodically();
 }

@@ -6,6 +6,10 @@ CHANGELOG
 blink led at the end of the loop() every minute
     this will help to distinguish between board or connection/terminal issues when terminal stops working
 
+add "|packet-stuff" to lines with packet info for easier distinguishing
+
+move radio sleeping to right after radio is done being used
+
 --------------------------------------
 03.14.19
 
