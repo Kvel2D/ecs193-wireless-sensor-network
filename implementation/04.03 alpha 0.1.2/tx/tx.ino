@@ -97,7 +97,7 @@ void setup()
     rf69.setEncryptionKey(key);
 
     rf69_manager.setRetries(0);
-    rf69_manager.setTimeout(10);
+    rf69_manager.setTimeout(20);
 
     Serial.print("RFM69 radio @");  
     Serial.print((int)RF69_FREQ);  Serial.println(" MHz");
@@ -119,7 +119,7 @@ float read_temp(void){
     // NOTE: can pull up specific pin instead of using 3V pin, probably the way to go
     digitalWrite(2, HIGH);
     delay(2);
-    v_out = analogRead(0);
+    v_out = analogRead(A0);
     digitalWrite(2, LOW);
     // NOTE: this is the original value, assume it comes from (5.0v / 1023), which is ADC to volts conversion
     // v_out *= .0048;
@@ -153,11 +153,13 @@ void loop() {
         sensor_wakeup_time = millis();
     }
 
+    rf69.sleep();
     delay(sleep_time);
     total_sleep_time += sleep_time;
 
     uint32_t send_tx = millis();
     tx_time = 0;
+    rf69.setModeIdle();
 
     if (packet_queue.size > 0) {
         for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
@@ -167,19 +169,12 @@ void loop() {
         start_time = millis();
         Packet packet = packet_queue.front();
 
-        //
         // Transmit
-        //
-        // Turn on radio        
-        rf69.setModeIdle();
-        
         tx_result = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), DEST_ADDRESS);
-
-        // Turn off radio
-        rf69.sleep();
 
         tx_time = millis() - start_time;
     }
+
     
     uint32_t total_time = millis();
     uint32_t total_time_ms = total_time % 1000;
