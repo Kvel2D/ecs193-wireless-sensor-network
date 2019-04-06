@@ -196,6 +196,7 @@ void loop() {
         total_time = millis();
         
         Serial.print("  ");
+        Serial.print("|packet-stuff ");
         Serial.print(popped.age);
         Serial.print("  ");
         Serial.print(popped.number);

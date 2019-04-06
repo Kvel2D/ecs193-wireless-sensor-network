@@ -128,6 +128,7 @@ void loop() {
 
     if (received) {
         Serial.print("  ");
+        Serial.print("|packet-stuff ");
         Serial.print(p.age);
         Serial.print("  ");
         Serial.print(p.number);
