@@ -73,11 +73,8 @@ uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
 void loop() {
     uint32_t sleep_time = expovariate(2000.0f);
     sleep_time = convert_to_sleepydog_time(sleep_time);
-    rf69.sleep();
     delay(sleep_time);
     total_sleep_time += sleep_time;
-
-    rf69.setModeRx();
 
     uint32_t start_time = millis();
     uint8_t available_loop = 10;
@@ -85,15 +82,25 @@ void loop() {
     uint8_t recv_time = 0;
     bool received = false;
     
+    //
+    // Receive
+    //
+    // Turn on radio
+    rf69.setModeRx();
+    
     Packet p;
     while (millis() - start_time < 10) {
         if (rf69_manager.available()) {
             available_loop = millis() - start_time;
+
             // Wait for a message addressed to us from the client
             uint8_t len = sizeof(buffer);
             uint8_t from;
             start_recv = millis();
             if (rf69_manager.recvfromAck(buffer, &len, &from)) {
+                // Turn off radio
+                rf69.sleep();
+                
                 // zero out remaining string
                 buffer[len] = 0; 
 
@@ -105,12 +112,15 @@ void loop() {
                 memcpy(&p, buffer, sizeof(Packet));
                 recv_time = millis() - start_recv;
                 received = true;
+
                 break;
             }
-            
         }
         available_loop = millis() - start_time;
     } // end while()
+
+    // Turn off radio
+    rf69.sleep();
     
     uint32_t total_time = millis();
     uint32_t total_time_ms = total_time % 1000;
@@ -128,6 +138,7 @@ void loop() {
 
     if (received) {
         Serial.print("  ");
+        Serial.print("|packet-stuff ");
         Serial.print(p.age);
         Serial.print("  ");
         Serial.print(p.number);
