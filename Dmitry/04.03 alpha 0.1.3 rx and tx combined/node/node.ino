@@ -1,11 +1,10 @@
 #include <SPI.h>
+#include <EEPROM.h>
 #include <RH_RF69.h>
 #include <RHReliableDatagram.h>
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#define MY_ID       0
 
 #define ID_MAX      3
 #define NO_ID     255
@@ -14,6 +13,12 @@ bool has_sensor[ID_MAX];
 uint8_t parent_of[ID_MAX];
 
 uint8_t my_child;
+
+// NOTE: uncomment whichever id method you use
+// Hardcode id
+// uint8_t my_id = 0;
+// Read id from EEPROM (need to write it beforehand)
+uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 
 bool init_data_arrays() {
     has_sensor[0] = true;
@@ -28,12 +33,11 @@ bool init_data_arrays() {
     // Find my child
     // TODO: find all children, when nodes start having many
     for (size_t i = 0; i < ID_MAX; i++) {
-        if (parent_of[i] == MY_ID) {
+        if (parent_of[i] == my_id) {
             my_child = i;
         }
     }
 }
-
 
 // #define PACKET_PERIOD   (1000ul * 60ul * 5ul)
 #define PACKET_PERIOD   (1000ul * 5ul)
@@ -49,8 +53,8 @@ bool init_data_arrays() {
 // #define RX_RATE      (2000.0f)
 // #define TX_RATE      (400.0f)
 
-#define RX_RATE      (200.0f)
-#define TX_RATE      (40.0f)
+#define RX_RATE      (400.0f)
+#define TX_RATE      (80.0f)
 
 struct Packet {
     float reading;
@@ -86,7 +90,7 @@ struct Queue {
 };
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
-RHReliableDatagram rf69_manager(rf69, MY_ID);
+RHReliableDatagram rf69_manager(rf69, my_id);
 
 uint32_t total_sleep_time = 0;
 
@@ -103,8 +107,7 @@ uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
 
 
 
-void setup() 
-{  
+void setup() {  
     init_data_arrays();
 
     pinMode(LED_PIN, OUTPUT);
@@ -112,9 +115,12 @@ void setup()
     Serial.begin(115200);
 
     // Uncomment this to start running only after serial monitor is open
-    // while (!Serial) {
-    //     delay(1);
-    // }
+    while (!Serial) {
+        delay(1);
+    }
+
+    Serial.print("My id is: ");
+    Serial.println(my_id);
 
     pinMode(2, OUTPUT); // set up for the sensor voltage
     pinMode(RFM69_RST, OUTPUT);
@@ -159,13 +165,14 @@ void setup()
     Serial.print((int)RF69_FREQ);  Serial.println(" MHz");
     sensor_wakeup_time = millis();
 
-    Packet new_packet = {
-        .reading = read_temp(),
-        .age = 0,
-        .number = packet_number,
-    };
-    packet_queue.push(new_packet);
-    packet_number++;
+    // First packet for testing
+    // Packet new_packet = {
+    //     .reading = read_temp(),
+    //     .age = 0,
+    //     .number = packet_number,
+    // };
+    // packet_queue.push(new_packet);
+    // packet_number++;
 }
 
 float read_temp(void){
@@ -237,7 +244,7 @@ void loop_tx() {
         Packet packet = packet_queue.front();
 
         // Transmit
-        tx_result = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), parent_of[MY_ID]);
+        tx_result = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), parent_of[my_id]);
 
         tx_time = millis() - start_time;
     }
@@ -324,7 +331,7 @@ void loop_rx() {
                 recv_time = millis() - start_recv;
                 received = true;
 
-                if (parent_of[MY_ID] != NO_ID) {
+                if (parent_of[my_id] != NO_ID) {
                     packet_queue.push(p);
                 }
 
@@ -352,6 +359,7 @@ void loop_rx() {
     // Serial.print(total_time_ms); 
 
     if (received) {
+        Serial.println("Receive success");
         Serial.print("  ");
         Serial.print("|packet-stuff ");
         Serial.print(p.age);
@@ -368,7 +376,7 @@ void loop_rx() {
 
 void loop() {
     // Do readings periodically if node has sensor
-    if (has_sensor[MY_ID]) {
+    if (has_sensor[my_id]) {
         if (millis() - sensor_wakeup_time >= PACKET_PERIOD) {
             if (packet_queue.size < QUEUE_SIZE_MAX) {
                 Packet new_packet = {
@@ -388,7 +396,7 @@ void loop() {
         }
     }
 
-    if (packet_queue.size > 0 && parent_of[MY_ID] != NO_ID) {
+    if (packet_queue.size > 0 && parent_of[my_id] != NO_ID) {
         loop_tx();
     } else {
         loop_rx();
