@@ -1,6 +1,6 @@
 #include <EEPROM.h>
 
-#define ID 0
+#define ID 1
 
 void setup() {
     Serial.begin(115200);
