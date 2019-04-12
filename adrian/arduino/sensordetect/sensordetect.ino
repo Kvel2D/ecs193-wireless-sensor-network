@@ -41,21 +41,30 @@ void insertion_sort(int size, DeviceAddress directory[NUM_SENSORS], DeviceAddres
 }
 
 void create_address_book() {
+  Serial.println("START");
   DeviceAddress new_entry;
   oneWire.reset_search();
   int size = 0;
-  while(oneWire.search(new_entry)) {
+  while (oneWire.search(new_entry)) {
     if (sensors.validAddress((const uint8_t*)new_entry)) {
+      for (int i = 0; i < ADDRESS_LENGTH; i++) {
+        Serial.print(new_entry[i], HEX);
+        Serial.print(" ");
+      }
+      Serial.println();
       insertion_sort(size, addresses, new_entry); // insert addresses by their magnitude.
+      size++;
     }
   }
-
+  Serial.println("END");
 }
 
 void setup(void) {
   // start serial port
   Serial.begin(9600);
-
+  while (!Serial) {
+    delay(1);
+  }
   create_address_book();
 
   // Start up the library
@@ -69,8 +78,10 @@ void loop(void) {
   sensors.requestTemperatures(); // Send the command to get temperatures
   Serial.println("DONE");
   for (int i = 0; i < NUM_SENSORS; i++) {
-    Serial.print("Temperature for the device ");
-    Serial.print(i);
+    for (int j = 0; j < ADDRESS_LENGTH; j++) {
+      Serial.print(addresses[i][j], HEX);
+      Serial.print(" ");
+    }
     Serial.print(": ");
     Serial.println(sensors.getTempC(addresses[i]));
   }
