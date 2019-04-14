@@ -263,7 +263,7 @@ void loop_tx() {
         Serial.print("  ");
         Serial.print(popped.number);
         Serial.print("  ");
-        Serial.print(popped.reading);
+//        Serial.print(popped.reading);
     }
 
     Serial.println("");
@@ -347,7 +347,7 @@ void loop_rx() {
         Serial.print("  ");
         Serial.print(p.number);
         Serial.print("  ");
-        Serial.print(p.reading);
+//        Serial.print(p.readings);
     }
     Serial.println("");
 }

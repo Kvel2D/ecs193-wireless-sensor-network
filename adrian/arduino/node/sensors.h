@@ -61,6 +61,7 @@ void create_address_book() {
 }
 
 void begin_sensors() {
+  create_address_book();
   sensors.begin();
 }
 
@@ -68,13 +69,18 @@ void request_temp() {
   sensors.requestTemperatures();
 }
 
-void read_temp(float[] buffer) {
+void read_temp(float buffer[]) {
+  Serial.print("Requesting temperatures...");
+  sensors.requestTemperatures(); // Send the command to get temperatures
+  Serial.println("DONE");
   for (int i = 0; i < NUM_SENSORS; i++) {
     for (int j = 0; j < ADDRESS_LENGTH; j++) {
       Serial.print(addresses[i][j], HEX);
       Serial.print(" ");
     }
     Serial.print(": ");
-    Serial.println(sensors.getTempC(addresses[i]));
+    float reading = sensors.getTempC(addresses[i]);
+    Serial.println(reading);
+    buffer[i] = reading;
   }
 }
