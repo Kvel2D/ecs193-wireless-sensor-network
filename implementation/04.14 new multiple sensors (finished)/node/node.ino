@@ -55,7 +55,7 @@ bool init_data_arrays() {
 #define LED_PIN         13
 #define LED_PERIOD      (60ul * 1000ul)
 
-#define RX_RATE      (1000.0f)
+#define RX_RATE      (600.0f)
 #define TX_RATE      (200.0f)
 
 struct Packet {
@@ -371,6 +371,7 @@ void loop() {
     }
     if (current_frequency != expected_frequency) {
         rf69.setFrequency(expected_frequency);
+        current_frequency = expected_frequency;
     }
 
     if (packet_queue.size > 0 && parent_of[my_id] != NO_ID) {
