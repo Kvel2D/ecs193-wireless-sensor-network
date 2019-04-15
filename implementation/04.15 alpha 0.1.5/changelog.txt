@@ -5,6 +5,7 @@ CHANGELOG
 Clear buffer before entering main rx loop
 add PRINT_DEBUG flag
 move Queue into queue.h
+change timeout to 10, since failtoacks are fixed
 
 --------------------------------------
 0.1.4 04.14.19
