@@ -255,8 +255,7 @@ void loop_tx() {
 
         total_time = millis();
         
-        Serial.print(",");
-        Serial.print("|packet-stuff");
+        Serial.print("|tx-packet-stuff");
         Serial.print(",");
         print_packet(popped);
         Serial.println("");
@@ -329,7 +328,7 @@ void loop_rx() {
     // Serial.print(total_time_ms); 
 
     if (received) {
-        Serial.print("|packet-stuff");
+        Serial.print("|rx-packet-stuff");
         Serial.print(","); 
         print_packet(p);
         Serial.println("");
