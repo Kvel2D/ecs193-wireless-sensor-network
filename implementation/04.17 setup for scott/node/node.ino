@@ -12,6 +12,8 @@ struct Packet {
     float reading[NUM_SENSORS];
     uint32_t age;
     uint16_t number;
+    uint8_t origin_id;
+    uint8_t current_id;
 };
 
 #include "queue.h"
@@ -33,12 +35,12 @@ uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 
 bool init_data_arrays() {
     has_sensor[0] = true;
-    parent_of[0] = 1;
+    parent_of[0] = NO_ID;
     frequency[0] = 433.0f;
 
-    has_sensor[1] = false;
-    parent_of[1] = NO_ID;
-    frequency[1] = 434.0f;
+    // has_sensor[4] = false;
+    // parent_of[4] = 3;
+    // frequency[4] = 434.0f;
 
     // has_sensor[3] = false;
     // parent_of[3] = NO_ID;
@@ -53,7 +55,7 @@ bool init_data_arrays() {
     }
 }
 
-#define PRINT_DEBUG     true
+#define PRINT_DEBUG     false
 #define RF69_FREQ       433.0
 #define RFM69_CS        8
 #define RFM69_INT       7
@@ -61,13 +63,9 @@ bool init_data_arrays() {
 #define LED_PIN         13
 #define LED_PERIOD      (60ul * 1000ul)
 
-// #define PACKET_PERIOD   (1000ul * 60ul)
-// #define RX_RATE      (600.0f)
-// #define TX_RATE      (200.0f)
-
-#define PACKET_PERIOD   (1000ul * 5ul)
-#define RX_RATE      (60.0f)
-#define TX_RATE      (20.0f)
+#define PACKET_PERIOD   (1000ul * 60ul)
+#define RX_RATE      (600.0f)
+#define TX_RATE      (200.0f)
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, my_id);
@@ -99,7 +97,9 @@ void setup() {
     // }
 
     // NOTE: has to happen here right after serial connection is made
-    setup_sensors();
+    if (has_sensor[my_id]) {
+        setup_sensors();
+    }
 
     pinMode(2, OUTPUT); // set up for the sensor voltage
     pinMode(RFM69_RST, OUTPUT);
@@ -175,7 +175,11 @@ void blink_led_periodically() {
 void print_packet(struct Packet packet) {
     Serial.print(packet.age);
     Serial.print(",");
+    Serial.print(packet.current_id);
+    Serial.print(",");
     Serial.print(packet.number);
+    Serial.print(",");
+    Serial.print(packet.origin_id);
     for (int i = 0; i < NUM_SENSORS; i++) {
         Serial.print(",");
         Serial.print(packet.reading[i]);
@@ -278,6 +282,8 @@ void loop_rx() {
                 recv_time = millis() - start_recv;
                 received = true;
 
+                p.current_id = my_id;
+
                 // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
                 if (parent_of[my_id] != NO_ID) {
                     packet_queue.push(p);
@@ -308,8 +314,6 @@ void loop_rx() {
 
     // Only last node prints to serial
     if (received && (parent_of[my_id] != NO_ID || PRINT_DEBUG)) {
-        Serial.print("|rx-packet-stuff");
-        Serial.print(","); 
         print_packet(p);
         Serial.println("");
     }
@@ -324,9 +328,21 @@ void loop() {
                     .reading = {},
                     .age = 0,
                     .number = packet_number,
+                    .origin_id = my_id,
                 };
 
-                read_temperatures(new_packet.reading);
+                // read_temperatures(new_packet.reading);
+
+                // NOTE: for scott's gateway setup
+                new_packet.age = 1337;
+                new_packet.reading[0] = 25.0f;
+                new_packet.reading[1] = 26.0f;
+                new_packet.reading[2] = 27.0f;
+                new_packet.reading[3] = 28.0f;
+                new_packet.reading[4] = 29.0f;
+                new_packet.reading[5] = 30.0f;
+                print_packet(new_packet);
+                Serial.println("");
 
                 packet_queue.push(new_packet);
 
