@@ -43,17 +43,8 @@ RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, my_id);
 float current_frequency = 0.0f;
 
-uint32_t total_sleep_time = 0;
-
-// TX
-uint32_t sensor_wakeup_time = 0;
-int16_t packet_number = 0;
+uint32_t last_reading_time = 0;
 Queue packet_queue;
-uint32_t start_time = millis();
-uint8_t tx_time = 0;
-
-// RX
-uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
 
 void setup() {  
     pinMode(LED_PIN, OUTPUT);
@@ -113,13 +104,13 @@ void setup() {
     rf69_manager.setRetries(0);
     rf69_manager.setTimeout(10);
 
-    sensor_wakeup_time = millis();
+    last_reading_time = millis();
 }
 
 int free_ram() {
-  extern int __heap_start, *__brkval; 
-  int v; 
-  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+    extern int __heap_start, *__brkval; 
+    int v; 
+    return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
 }
 
 float expovariate(float rate) {
@@ -199,10 +190,7 @@ void loop_tx() {
 
     rf69.sleep();
     delay(sleep_time);
-    total_sleep_time += sleep_time;
 
-    uint32_t send_tx = millis();
-    tx_time = 0;
     // Turn on radio
     rf69.setModeIdle();
 
@@ -210,49 +198,29 @@ void loop_tx() {
         for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
             packet_queue.data[i].age += sleep_time;
         }
-        start_time = millis();
         Packet packet = packet_queue.front();
 
         // Transmit
         tx_success = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), my_data.parent);
-
-        tx_time = millis() - start_time;
     }
-
-    uint32_t total_time = millis();
-    uint32_t total_time_ms = total_time % 1000;
-    total_time = total_time / 1000;
-
-    // Serial.print(sleep_time); 
-    // Serial.print(","); 
-    // Serial.print(tx_time); 
-    // Serial.print(","); 
-    // Serial.print(total_time); 
-    // Serial.print(","); 
-    // Serial.print(total_time_ms);
 
     if (tx_success) {
         Packet popped = packet_queue.pop();
 
-        total_time = millis();
-        
         if (PRINT_DEBUG) {
-            Serial.print("|tx-packet-stuff,");
+            Serial.print("|TX,");
             print_packet(popped);
         }
     }
 }
 
 void loop_rx() {
+    static uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
+
     uint32_t sleep_time = expovariate(RX_RATE);
     sleep_time = convert_to_sleepydog_time(sleep_time);
     delay(sleep_time);
-    total_sleep_time += sleep_time;
 
-    uint32_t start_time = millis();
-    uint8_t available_loop = 10;
-    uint32_t start_recv = 0;
-    uint8_t recv_time = 0;
     bool rx_success = false;
     
     // Turn on radio
@@ -265,14 +233,12 @@ void loop_rx() {
     }
     
     Packet p;
+    uint32_t start_time = millis();
     while (millis() - start_time < 10) {
         if (rf69_manager.available()) {
-            available_loop = millis() - start_time;
-
             // Wait for a message addressed to us from the client
             uint8_t len = sizeof(buffer);
             uint8_t from;
-            start_recv = millis();
             if (rf69_manager.recvfromAck(buffer, &len, &from)) {
                 // Turn off radio
                 rf69.sleep();
@@ -281,7 +247,6 @@ void loop_rx() {
                 buffer[len] = 0; 
 
                 memcpy(&p, buffer, sizeof(Packet));
-                recv_time = millis() - start_recv;
                 rx_success = true;
 
                 p.current_id = my_id;
@@ -294,30 +259,15 @@ void loop_rx() {
                 break;
             }
         }
-        available_loop = millis() - start_time;
     }
 
     // Turn off radio
     rf69.sleep();
     
-    uint32_t total_time = millis();
-    uint32_t total_time_ms = total_time % 1000;
-    total_time =  total_time / 1000;
-
-    // Serial.print(sleep_time); 
-    // Serial.print(","); 
-    // Serial.print(available_loop); 
-    // Serial.print(","); 
-    // Serial.print(recv_time); 
-    // Serial.print(","); 
-    // Serial.print(total_time); 
-    // Serial.print(","); 
-    // Serial.print(total_time_ms); 
-
     // Only last node prints to serial
     if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG)) {
         if (PRINT_DEBUG) {
-            Serial.print("|rx-packet-stuff,");
+            Serial.print("|RX,");
         }
         print_packet(p);
     }
@@ -326,8 +276,10 @@ void loop_rx() {
 void loop() {
     // Do readings periodically if node has sensor
     if (my_data.has_sensor) {
-        if (millis() - sensor_wakeup_time >= PACKET_PERIOD) {
+        if (millis() - last_reading_time >= PACKET_PERIOD) {
             if (packet_queue.size < QUEUE_SIZE_MAX) {
+                static int16_t packet_number = 0;
+
                 Packet new_packet = {
                     .reading = {},
                     .age = 0,
@@ -352,7 +304,8 @@ void loop() {
                     Serial.println("Queue full");
                 }
             }
-            sensor_wakeup_time = millis();
+
+            last_reading_time = millis();
         }
     }
 

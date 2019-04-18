@@ -2,7 +2,8 @@ CHANGELOG
 
 --------------------------------------
 0.1.7 04.18.19
-
+improve print_packet
+remove old sleep info printing
 
 --------------------------------------
 0.1.6 04.17.19
