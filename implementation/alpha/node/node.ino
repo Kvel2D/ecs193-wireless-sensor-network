@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include "sensor.h"
+#include "tree_data.h"
 
 struct Packet {
     float reading[NUM_SENSORS];
@@ -18,34 +19,13 @@ struct Packet {
 
 #include "queue.h"
 
-#define ID_MAX      10
-#define NO_ID     255
-
-bool has_sensor[ID_MAX];
-uint8_t parent_of[ID_MAX];
-float rx_frequency[ID_MAX];
-
 // NOTE: uncomment whichever id method you use
 // Hardcode id
 // uint8_t my_id = 0;
 // Read id from EEPROM
 uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
-
-bool init_data_arrays() {
-    // NOTE: make sure that even when only using one node, the parent frequency is defined
-
-    has_sensor[5] = true;
-    parent_of[5] = 4;
-    rx_frequency[5] = 433.0f;
-
-    has_sensor[4] = false;
-    parent_of[4] = 3;
-    rx_frequency[4] = 434.0f;
-
-    has_sensor[3] = false;
-    parent_of[3] = NO_ID;
-    rx_frequency[3] = 435.0f;
-}
+NodeData my_data;
+NodeData parent_data;
 
 #define PRINT_DEBUG     true
 #define RF69_FREQ       433.0
@@ -76,19 +56,21 @@ uint8_t tx_time = 0;
 uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
 
 void setup() {  
-    init_data_arrays();
-
     pinMode(LED_PIN, OUTPUT);
 
     Serial.begin(115200);
 
     // Uncomment this to start running only after serial monitor is open
     // while (!Serial) {
-        // delay(1);
+    //     delay(1);
     // }
 
+    // Read node and parent data
+    memcpy_P(&my_data, &tree_data[my_id], sizeof(NodeData));
+    memcpy_P(&parent_data, &tree_data[my_data.parent], sizeof(NodeData));
+
     // NOTE: has to happen here right after serial connection is made
-    if (has_sensor[my_id]) {
+    if (my_data.has_sensor) {
         setup_sensors();
     }
 
@@ -134,14 +116,10 @@ void setup() {
     sensor_wakeup_time = millis();
 }
 
-void check_memory() {
-    size_t size = 2048;
-    void* ptr;
-    while ((ptr = malloc(size)) == NULL && size >= 2) {
-        size /= 2;
-    }
-    free(ptr);
-    Serial.println(size);
+int free_ram() {
+  extern int __heap_start, *__brkval; 
+  int v; 
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
 }
 
 float expovariate(float rate) {
@@ -187,10 +165,31 @@ void print_packet(struct Packet p) {
     //     Serial.print(p.reading[i]);
     // }
 
-    // printing float: ("%d%02d", (int)(f), (int)(f * 100) % 100)
-    char print_buffer[100];
-    sprintf(print_buffer, "%lu,%u,%u,%u,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d", p.age, p.current_id, p.number, p.origin_id, (int)(p.reading[0]), (int)(p.reading[0] * 100) % 100, (int)(p.reading[1]), (int)(p.reading[1] * 100) % 100, (int)(p.reading[2]), (int)(p.reading[2] * 100) % 100, (int)(p.reading[3]), (int)(p.reading[3] * 100) % 100, (int)(p.reading[4]), (int)(p.reading[4] * 100) % 100,(int)(p.reading[5]), (int)(p.reading[5] * 100) % 100);
-    Serial.println(print_buffer);
+    // NOTE: to print a float do: ("%d%02d", (int)(f), (int)(f * 100) % 100)
+
+    // 1 uint32 (10 chars)
+    // 3 uint16 (5 chars)
+    // 6 floats (formatted as -123.45, so 7 chars)
+    // 9 commas
+    // newline
+    static char print_packet_buffer[10 + 3 * 5 + 6 * 7 + 9 + 1 + 1];
+    int print_size = snprintf(print_packet_buffer, sizeof(print_packet_buffer), "%lu,%u,%u,%u,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d", 
+        p.age, 
+        p.current_id, 
+        p.number, 
+        p.origin_id, 
+        (int)(p.reading[0]), (int)(p.reading[0] * 100) % 100, 
+        (int)(p.reading[1]), (int)(p.reading[1] * 100) % 100, 
+        (int)(p.reading[2]), (int)(p.reading[2] * 100) % 100, 
+        (int)(p.reading[3]), (int)(p.reading[3] * 100) % 100, 
+        (int)(p.reading[4]), (int)(p.reading[4] * 100) % 100,
+        (int)(p.reading[5]), (int)(p.reading[5] * 100) % 100);
+
+    Serial.println(print_packet_buffer);
+
+    if ((size_t)print_size > sizeof(print_packet_buffer)) {
+        Serial.println("print_packet_buffer too small");
+    }
 }
 
 void loop_tx() {
@@ -215,7 +214,7 @@ void loop_tx() {
         Packet packet = packet_queue.front();
 
         // Transmit
-        tx_success = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), parent_of[my_id]);
+        tx_success = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), my_data.parent);
 
         tx_time = millis() - start_time;
     }
@@ -288,7 +287,7 @@ void loop_rx() {
                 p.current_id = my_id;
 
                 // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
-                if (parent_of[my_id] != NO_ID) {
+                if (my_data.parent != NO_ID) {
                     packet_queue.push(p);
                 }
 
@@ -316,7 +315,7 @@ void loop_rx() {
     // Serial.print(total_time_ms); 
 
     // Only last node prints to serial
-    if (rx_success && (parent_of[my_id] == NO_ID || PRINT_DEBUG)) {
+    if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG)) {
         if (PRINT_DEBUG) {
             Serial.print("|rx-packet-stuff,");
         }
@@ -326,7 +325,7 @@ void loop_rx() {
 
 void loop() {
     // Do readings periodically if node has sensor
-    if (has_sensor[my_id]) {
+    if (my_data.has_sensor) {
         if (millis() - sensor_wakeup_time >= PACKET_PERIOD) {
             if (packet_queue.size < QUEUE_SIZE_MAX) {
                 Packet new_packet = {
@@ -359,17 +358,17 @@ void loop() {
 
     // Set frequency
     float expected_frequency = 0.0f;
-    if (packet_queue.size > 0 && parent_of[my_id] != NO_ID) {
-        expected_frequency = rx_frequency[parent_of[my_id]];
+    if (packet_queue.size > 0 && my_data.parent != NO_ID) {
+        expected_frequency = parent_data.rx_frequency;
     } else {
-        expected_frequency = rx_frequency[my_id];
+        expected_frequency = my_data.rx_frequency;
     }
     if (current_frequency != expected_frequency) {
         rf69.setFrequency(expected_frequency);
         current_frequency = expected_frequency;
     }
 
-    if (packet_queue.size > 0 && parent_of[my_id] != NO_ID) {
+    if (packet_queue.size > 0 && my_data.parent != NO_ID) {
         loop_tx();
     } else {
         loop_rx();

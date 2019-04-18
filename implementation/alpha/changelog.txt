@@ -1,6 +1,15 @@
 CHANGELOG
 
 --------------------------------------
+0.1.7 04.18.19
+
+
+--------------------------------------
+0.1.6 04.17.19
+add origin_id and current_id to Packet
+change print_packet to use sprintf and a single Serial.println call
+
+--------------------------------------
 0.1.5 04.15.19
 Clear buffer before entering main rx loop
 add PRINT_DEBUG flag
