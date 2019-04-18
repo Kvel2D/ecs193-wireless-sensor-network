@@ -58,7 +58,9 @@ void setup() {
 
     // Read node and parent data
     memcpy_P(&my_data, &tree_data[my_id], sizeof(NodeData));
-    memcpy_P(&parent_data, &tree_data[my_data.parent], sizeof(NodeData));
+    if (my_data.parent != NO_ID) {
+        memcpy_P(&parent_data, &tree_data[my_data.parent], sizeof(NodeData));
+    }
 
     // NOTE: has to happen here right after serial connection is made
     if (my_data.has_sensor) {
@@ -162,7 +164,8 @@ void print_packet(struct Packet p) {
     // 3 uint16 (5 chars)
     // 6 floats (formatted as -123.45, so 7 chars)
     // 9 commas
-    // newline
+    // null-terminator
+    // 1 more char for leeway
     static char print_packet_buffer[10 + 3 * 5 + 6 * 7 + 9 + 1 + 1];
     int print_size = snprintf(print_packet_buffer, sizeof(print_packet_buffer), "%lu,%u,%u,%u,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d", 
         p.age, 
