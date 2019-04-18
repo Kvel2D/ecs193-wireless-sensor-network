@@ -23,9 +23,7 @@ struct Packet {
 
 bool has_sensor[ID_MAX];
 uint8_t parent_of[ID_MAX];
-float frequency[ID_MAX];
-
-uint8_t my_child;
+float rx_frequency[ID_MAX];
 
 // NOTE: uncomment whichever id method you use
 // Hardcode id
@@ -34,25 +32,19 @@ uint8_t my_child;
 uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 
 bool init_data_arrays() {
+    // NOTE: make sure that even when only using one node, the parent frequency is defined
+
     has_sensor[5] = true;
     parent_of[5] = 4;
-    frequency[5] = 433.0f;
+    rx_frequency[5] = 433.0f;
 
     has_sensor[4] = false;
     parent_of[4] = 3;
-    frequency[4] = 434.0f;
+    rx_frequency[4] = 434.0f;
 
     has_sensor[3] = false;
     parent_of[3] = NO_ID;
-    frequency[3] = 435.0f;
-
-    // Find my child
-    // TODO: find all children, when nodes start having many
-    for (size_t i = 0; i < ID_MAX; i++) {
-        if (parent_of[i] == my_id) {
-            my_child = i;
-        }
-    }
+    rx_frequency[3] = 435.0f;
 }
 
 #define PRINT_DEBUG     true
@@ -76,7 +68,6 @@ uint32_t total_sleep_time = 0;
 // TX
 uint32_t sensor_wakeup_time = 0;
 int16_t packet_number = 0;
-char reading[5];
 Queue packet_queue;
 uint32_t start_time = millis();
 uint8_t tx_time = 0;
@@ -93,7 +84,7 @@ void setup() {
 
     // Uncomment this to start running only after serial monitor is open
     // while (!Serial) {
-    //     delay(1);
+        // delay(1);
     // }
 
     // NOTE: has to happen here right after serial connection is made
@@ -143,6 +134,16 @@ void setup() {
     sensor_wakeup_time = millis();
 }
 
+void check_memory() {
+    size_t size = 2048;
+    void* ptr;
+    while ((ptr = malloc(size)) == NULL && size >= 2) {
+        size /= 2;
+    }
+    free(ptr);
+    Serial.println(size);
+}
+
 float expovariate(float rate) {
     float k = -((float) random(0, RAND_MAX) / (RAND_MAX + 1));
     return -log(1.0f - k) / (1 / rate);
@@ -172,22 +173,28 @@ void blink_led_periodically() {
     }
 }
 
-void print_packet(struct Packet packet) {
-    Serial.print(packet.age);
-    Serial.print(",");
-    Serial.print(packet.current_id);
-    Serial.print(",");
-    Serial.print(packet.number);
-    Serial.print(",");
-    Serial.print(packet.origin_id);
-    for (int i = 0; i < NUM_SENSORS; i++) {
-        Serial.print(",");
-        Serial.print(packet.reading[i]);
-    }
+void print_packet(struct Packet p) {
+    // NOTE: old printing with multiple prints, remove when sure that it's not needed
+    // Serial.print(p.age);
+    // Serial.print(",");
+    // Serial.print(p.current_id);
+    // Serial.print(",");
+    // Serial.print(p.number);
+    // Serial.print(",");
+    // Serial.print(p.origin_id);
+    // for (int i = 0; i < NUM_SENSORS; i++) {
+    //     Serial.print(",");
+    //     Serial.print(p.reading[i]);
+    // }
+
+    // printing float: ("%d%02d", (int)(f), (int)(f * 100) % 100)
+    char print_buffer[100];
+    sprintf(print_buffer, "%lu,%u,%u,%u,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d", p.age, p.current_id, p.number, p.origin_id, (int)(p.reading[0]), (int)(p.reading[0] * 100) % 100, (int)(p.reading[1]), (int)(p.reading[1] * 100) % 100, (int)(p.reading[2]), (int)(p.reading[2] * 100) % 100, (int)(p.reading[3]), (int)(p.reading[3] * 100) % 100, (int)(p.reading[4]), (int)(p.reading[4] * 100) % 100,(int)(p.reading[5]), (int)(p.reading[5] * 100) % 100);
+    Serial.println(print_buffer);
 }
 
 void loop_tx() {
-    bool tx_result = false;
+    bool tx_success = false;
     uint32_t sleep_time = expovariate(TX_RATE);
     sleep_time = convert_to_sleepydog_time(sleep_time);
 
@@ -208,7 +215,7 @@ void loop_tx() {
         Packet packet = packet_queue.front();
 
         // Transmit
-        tx_result = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), parent_of[my_id]);
+        tx_success = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), parent_of[my_id]);
 
         tx_time = millis() - start_time;
     }
@@ -225,18 +232,14 @@ void loop_tx() {
     // Serial.print(","); 
     // Serial.print(total_time_ms);
 
-    if (tx_result) {
-        tx_result = false;
-
+    if (tx_success) {
         Packet popped = packet_queue.pop();
 
         total_time = millis();
         
         if (PRINT_DEBUG) {
-            Serial.print("|tx-packet-stuff");
-            Serial.print(",");
+            Serial.print("|tx-packet-stuff,");
             print_packet(popped);
-            Serial.println("");
         }
     }
 }
@@ -251,7 +254,7 @@ void loop_rx() {
     uint8_t available_loop = 10;
     uint32_t start_recv = 0;
     uint8_t recv_time = 0;
-    bool received = false;
+    bool rx_success = false;
     
     // Turn on radio
     rf69.setModeRx();
@@ -280,7 +283,7 @@ void loop_rx() {
 
                 memcpy(&p, buffer, sizeof(Packet));
                 recv_time = millis() - start_recv;
-                received = true;
+                rx_success = true;
 
                 p.current_id = my_id;
 
@@ -313,9 +316,11 @@ void loop_rx() {
     // Serial.print(total_time_ms); 
 
     // Only last node prints to serial
-    if (received && (parent_of[my_id] != NO_ID || PRINT_DEBUG)) {
+    if (rx_success && (parent_of[my_id] == NO_ID || PRINT_DEBUG)) {
+        if (PRINT_DEBUG) {
+            Serial.print("|rx-packet-stuff,");
+        }
         print_packet(p);
-        Serial.println("");
     }
 }
 
@@ -329,6 +334,7 @@ void loop() {
                     .age = 0,
                     .number = packet_number,
                     .origin_id = my_id,
+                    .current_id = my_id,
                 };
 
                 read_temperatures(new_packet.reading);
@@ -339,7 +345,6 @@ void loop() {
                     Serial.print("Packet created: ");
                     Serial.println(packet_number);
                     print_packet(new_packet);
-                    Serial.println("");
                 }
 
                 packet_number++;
@@ -355,9 +360,9 @@ void loop() {
     // Set frequency
     float expected_frequency = 0.0f;
     if (packet_queue.size > 0 && parent_of[my_id] != NO_ID) {
-        expected_frequency = frequency[parent_of[my_id]];
+        expected_frequency = rx_frequency[parent_of[my_id]];
     } else {
-        expected_frequency = frequency[my_id];
+        expected_frequency = rx_frequency[my_id];
     }
     if (current_frequency != expected_frequency) {
         rf69.setFrequency(expected_frequency);
