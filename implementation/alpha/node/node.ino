@@ -35,7 +35,7 @@ NodeData parent_data;
 #define LED_PIN         13
 #define LED_PERIOD      (60ul * 1000ul)
 
-#define PACKET_PERIOD   (1000ul * 60ul)
+#define PACKET_PERIOD   (1000ul * 60ul * 5ul)
 #define RX_RATE      (600.0f)
 #define TX_RATE      (200.0f)
 
@@ -158,7 +158,7 @@ void print_packet(struct Packet p) {
     //     Serial.print(p.reading[i]);
     // }
 
-    // NOTE: to print a float do: ("%d%02d", (int)(f), (int)(f * 100) % 100)
+    // NOTE: to print a float do: ("%d%01d", (int)(f), (int)(f * 100) % 100)
 
     // 1 uint32 (10 chars)
     // 3 uint16 (5 chars)
@@ -166,18 +166,18 @@ void print_packet(struct Packet p) {
     // 9 commas
     // null-terminator
     // 1 more char for leeway
-    static char print_packet_buffer[10 + 3 * 5 + 6 * 7 + 9 + 1 + 1];
-    int print_size = snprintf(print_packet_buffer, sizeof(print_packet_buffer), "%lu,%u,%u,%u,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d", 
+    static char print_packet_buffer[10 + 3 * 5 + 6 * 6 + 9 + 1 + 1];
+    int print_size = snprintf(print_packet_buffer, sizeof(print_packet_buffer), "%lu,%u,%u,%u,%d.%01d,%d.%01d,%d.%01d,%d.%01d,%d.%01d,%d.%01d", 
         p.age, 
         p.current_id, 
         p.number, 
         p.origin_id, 
-        (int)(p.reading[0]), (int)(p.reading[0] * 100) % 100, 
-        (int)(p.reading[1]), (int)(p.reading[1] * 100) % 100, 
-        (int)(p.reading[2]), (int)(p.reading[2] * 100) % 100, 
-        (int)(p.reading[3]), (int)(p.reading[3] * 100) % 100, 
-        (int)(p.reading[4]), (int)(p.reading[4] * 100) % 100,
-        (int)(p.reading[5]), (int)(p.reading[5] * 100) % 100);
+        (int)(p.reading[0]), (int)(p.reading[0] * 100) % 100 / 10, 
+        (int)(p.reading[1]), (int)(p.reading[1] * 100) % 100 / 10, 
+        (int)(p.reading[2]), (int)(p.reading[2] * 100) % 100 / 10, 
+        (int)(p.reading[3]), (int)(p.reading[3] * 100) % 100 / 10, 
+        (int)(p.reading[4]), (int)(p.reading[4] * 100) % 100 / 10,
+        (int)(p.reading[5]), (int)(p.reading[5] * 100) % 100 / 10);
 
     Serial.println(print_packet_buffer);
 
