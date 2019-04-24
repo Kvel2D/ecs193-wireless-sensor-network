@@ -327,7 +327,6 @@ void loop() {
     // Do readings periodically if node has sensor
     if (my_data.has_sensor) {
         if (millis() - last_reading_time >= PACKET_PERIOD) {
-            health_packet_generate();
             if (packet_queue.size < QUEUE_SIZE_MAX) {
                 Packet new_packet = {
                     .type = PacketType_Reading,
