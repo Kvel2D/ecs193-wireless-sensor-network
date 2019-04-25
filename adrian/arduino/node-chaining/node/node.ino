@@ -12,6 +12,8 @@ struct Packet {
   float reading[NUM_SENSORS];
   uint32_t age;
   uint16_t number;
+  uint8_t origin_id;
+  uint8_t current_id;
 };
 
 #include "queue.h"
@@ -27,7 +29,7 @@ uint8_t my_child;
 
 // NOTE: uncomment whichever id method you use
 // Hardcode id
-// uint8_t my_id = 0;
+//uint8_t my_id = 0;
 // Read id from EEPROM
 uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 
@@ -38,7 +40,11 @@ bool init_data_arrays() {
 
   has_sensor[1] = false;
   parent_of[1] = NO_ID;
-  frequency[1] = 434.0f;
+  frequency[1] = 433.0f;
+
+  // has_sensor[4] = false;
+  // parent_of[4] = 3;
+  // frequency[4] = 434.0f;
 
   // has_sensor[3] = false;
   // parent_of[3] = NO_ID;
@@ -46,11 +52,11 @@ bool init_data_arrays() {
 
   // Find my child
   // TODO: find all children, when nodes start having many
-  for (size_t i = 0; i < ID_MAX; i++) {
-    if (parent_of[i] == my_id) {
-      my_child = i;
-    }
-  }
+//  for (size_t i = 0; i < ID_MAX; i++) {
+//    if (parent_of[i] == my_id) {
+//      my_child = i;
+//    }
+//  }
 }
 
 #define PRINT_DEBUG true
@@ -61,13 +67,9 @@ bool init_data_arrays() {
 #define LED_PIN 13
 #define LED_PERIOD (60ul * 1000ul)
 
-// #define PACKET_PERIOD   (1000ul * 60ul)
-// #define RX_RATE      (600.0f)
-// #define TX_RATE      (200.0f)
-
-#define PACKET_PERIOD (1000ul * 5ul)
-#define RX_RATE (60.0f)
-#define TX_RATE (20.0f)
+#define PACKET_PERIOD 1000ul  // * 60ul)
+#define RX_RATE (600.0f)
+#define TX_RATE (200.0f)
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, my_id);
@@ -81,7 +83,6 @@ int16_t packet_number = 0;
 char reading[5];
 Queue packet_queue;
 uint32_t start_time = millis();
-uint8_t tx_time = 0;
 
 // RX
 uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
@@ -94,12 +95,16 @@ void setup() {
   Serial.begin(115200);
 
   // Uncomment this to start running only after serial monitor is open
-  // while (!Serial) {
-  //     delay(1);
-  // }
+   while (!Serial) {
+       delay(1);
+   }
+
+   Serial.println(my_id);
 
   // NOTE: has to happen here right after serial connection is made
-  setup_sensors();
+  if (has_sensor[my_id]) {
+    setup_sensors();
+  }
 
   pinMode(2, OUTPUT);  // set up for the sensor voltage
   pinMode(RFM69_RST, OUTPUT);
@@ -176,7 +181,11 @@ void blink_led_periodically() {
 void print_packet(struct Packet packet) {
   Serial.print(packet.age);
   Serial.print(",");
+  Serial.print(packet.current_id);
+  Serial.print(",");
   Serial.print(packet.number);
+  Serial.print(",");
+  Serial.print(packet.origin_id);
   for (int i = 0; i < NUM_SENSORS; i++) {
     Serial.print(",");
     Serial.print(packet.reading[i]);
@@ -191,52 +200,60 @@ void loop_tx() {
   rf69.sleep();
   delay(sleep_time);
   total_sleep_time += sleep_time;
-
-  uint32_t send_tx = millis();
-  tx_time = 0;
-  // Turn on radio
-  rf69.setModeIdle();
-
   if (packet_queue.size > 0) {
-    for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
+    for (size_t i = 0; i < packet_queue.size; i++) {
       packet_queue.data[i].age += sleep_time;
     }
-    start_time = millis();
-    Packet packet = packet_queue.front();
-
-    // Transmit
-    tx_result = rf69_manager.sendtoWait((uint8_t *)&packet, sizeof(Packet),
-                                        parent_of[my_id]);
-
-    tx_time = millis() - start_time;
   }
-
-  uint32_t total_time = millis();
-  uint32_t total_time_ms = total_time % 1000;
-  total_time = total_time / 1000;
-
-  // Serial.print(sleep_time);
-  // Serial.print(",");
-  // Serial.print(tx_time);
-  // Serial.print(",");
-  // Serial.print(total_time);
-  // Serial.print(",");
-  // Serial.print(total_time_ms);
-
-  if (tx_result) {
+  do {
     tx_result = false;
+    uint32_t start_time = millis();
+    uint8_t tx_time = 0;
+    // Turn on radio
+    rf69.setModeIdle();
+    if (packet_queue.size > 0) {
+      Packet packet = packet_queue.front();
 
-    Packet popped = packet_queue.pop();
+      // Transmit
+      tx_result = rf69_manager.sendtoWait((uint8_t *)&packet, sizeof(Packet),
+                                          parent_of[my_id]);
 
-    total_time = millis();
-
-    if (PRINT_DEBUG) {
-      Serial.print("|tx-packet-stuff");
-      Serial.print(",");
-      print_packet(popped);
-      Serial.println("");
+      tx_time = millis() - start_time;
     }
-  }
+    rf69.sleep();
+    //  uint32_t total_time = millis();
+    //  uint32_t total_time_ms = total_time % 1000;
+    //  total_time = total_time / 1000;
+
+    // Serial.print(sleep_time);
+    // Serial.print(",");
+    // Serial.print(tx_time);
+    // Serial.print(",");
+    // Serial.print(total_time);
+    // Serial.print(",");
+    // Serial.print(total_time_ms);
+
+    if (tx_result) {
+      Packet popped = packet_queue.pop();
+
+      //      total_time = millis();
+
+      if (PRINT_DEBUG) {
+        Serial.print("|tx-packet-stuff");
+        Serial.print(",");
+        print_packet(popped);
+        Serial.println("");
+      }
+    }
+    if (packet_queue.size > 0) {
+      for (size_t i = 0; i < packet_queue.size; i++) {
+        packet_queue.data[i].age += tx_time;
+      }
+    }
+    if (tx_result && packet_queue.size > 0) {
+      Serial.println("chaining");
+    }
+  } while (tx_result && packet_queue.size > 0);
 }
 
 void loop_rx() {
@@ -244,8 +261,9 @@ void loop_rx() {
   sleep_time = convert_to_sleepydog_time(sleep_time);
   delay(sleep_time);
   total_sleep_time += sleep_time;
-  bool received = false;
+  bool received;
   do {
+    received = false;
     uint32_t start_time = millis();
     uint8_t available_loop = 10;
     uint32_t start_recv = 0;
@@ -262,7 +280,7 @@ void loop_rx() {
 
     Packet p;
     while (millis() - start_time < 10) {
-      if (rf69_manager.available()) {  // There is a message available
+      if (rf69_manager.available()) {
         available_loop = millis() - start_time;
 
         // Wait for a message addressed to us from the client
@@ -279,6 +297,8 @@ void loop_rx() {
           memcpy(&p, buffer, sizeof(Packet));
           recv_time = millis() - start_recv;
           received = true;
+
+          p.current_id = my_id;
 
           // NOTE: Last node doesn't put packets into queue, they are
           // "transferred" to gateway when packet is printer
@@ -299,26 +319,25 @@ void loop_rx() {
     uint32_t total_time_ms = total_time % 1000;
     total_time = total_time / 1000;
 
-    // Serial.print(sleep_time);
-    // Serial.print(",");
-    // Serial.print(available_loop);
-    // Serial.print(",");
-    // Serial.print(recv_time);
-    // Serial.print(",");
-    // Serial.print(total_time);
-    // Serial.print(",");
-    // Serial.print(total_time_ms);
-
+    Serial.print(sleep_time);
+    Serial.print(",");
+    Serial.print(available_loop);
+    Serial.print(",");
+    Serial.print(recv_time);
+    Serial.print(",");
+    Serial.print(total_time);
+    Serial.print(",");
+    Serial.println(total_time_ms);
     // Only last node prints to serial
     if (received && (parent_of[my_id] != NO_ID || PRINT_DEBUG)) {
-      Serial.print("|rx-packet-stuff");
-      Serial.print(",");
+      Serial.print("\t");
       print_packet(p);
-      Serial.println("");
     }
-  } while (received);  // If a node successfully received once, it should
-                       // immediatelly receive again to see if there are more
-                       // messages.
+    Serial.println();
+    if (received) {
+      Serial.println("chaining");
+    }
+  } while (received);
 }
 
 void loop() {
@@ -330,9 +349,21 @@ void loop() {
             .reading = {},
             .age = 0,
             .number = packet_number,
+            .origin_id = my_id,
         };
 
-        read_temperatures(new_packet.reading);
+        // read_temperatures(new_packet.reading);
+
+        // NOTE: for scott's gateway setup
+        new_packet.age = 1337;
+        new_packet.reading[0] = 25.0f;
+        new_packet.reading[1] = 26.0f;
+        new_packet.reading[2] = 27.0f;
+        new_packet.reading[3] = 28.0f;
+        new_packet.reading[4] = 29.0f;
+        new_packet.reading[5] = 30.0f;
+        print_packet(new_packet);
+        Serial.println("");
 
         packet_queue.push(new_packet);
 
@@ -341,12 +372,14 @@ void loop() {
           Serial.println(packet_number);
           print_packet(new_packet);
           Serial.println("");
+          Serial.print("Queue Size: ");
+          Serial.println(packet_queue.size);
         }
 
         packet_number++;
       } else {
         if (PRINT_DEBUG) {
-          Serial.println("Queue full");
+          Serial.println("Queue full.");
         }
       }
       sensor_wakeup_time = millis();
