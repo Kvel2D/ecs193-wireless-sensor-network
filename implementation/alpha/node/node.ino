@@ -9,13 +9,7 @@
 #include "sensor.h"
 #include "tree_data.h"
 
-enum PacketType {
-    PacketType_Reading,
-    PacketType_Health
-};
-
 struct Packet {
-    PacketType type;
     float reading[NUM_SENSORS];
     uint32_t age;
     uint16_t number;
@@ -39,10 +33,9 @@ NodeData parent_data;
 #define RFM69_INT       7
 #define RFM69_RST       4
 #define LED_PIN         13
-#define LED_PERIOD      (10ul * 1000ul)
+#define LED_PERIOD      (60ul * 1000ul)
 
-#define PACKET_PERIOD   (1000ul * 20ul * 1ul)
-#define HEALTH_PACKET_PERIOD  (1000ul * 10ul)
+#define PACKET_PERIOD   (1000ul * 60ul * 5ul)
 #define RX_RATE      (600.0f)
 #define TX_RATE      (200.0f)
 
@@ -52,7 +45,6 @@ float current_frequency = 0.0f;
 
 uint32_t last_reading_time = 0;
 Queue packet_queue;
-static int16_t packet_number = 0;
 
 void setup() {  
     pinMode(LED_PIN, OUTPUT);
@@ -165,11 +157,7 @@ void print_packet(struct Packet p) {
     //     Serial.print(",");
     //     Serial.print(p.reading[i]);
     // }
-    if(p.type == PacketType_Reading){
-      Serial.print("Type_Reading,");
-    } else if(p.type == PacketType_Health){
-      Serial.print("Type_Health,");
-    }
+
     // NOTE: to print a float do: ("%d%01d", (int)(f), (int)(f * 100) % 100)
 
     // 1 uint32 (10 chars)
@@ -288,48 +276,14 @@ void loop_rx() {
     }
 }
 
-void health_packet_generate(){
-    if (millis() - last_reading_time >= HEALTH_PACKET_PERIOD) {
-        if (packet_queue.size < QUEUE_SIZE_MAX) {
-  
-            Packet new_packet = {
-                .type = PacketType_Health,
-              // node ID, queue size, 0, 0, 0, 0
-                .reading = {my_id, packet_queue.size, 0, 0, 0, 0},
-                .age = 0,
-                .number = packet_number,
-                .origin_id = 0, //.origin_id = my_id,
-                .current_id = my_id,
-            };
-  
-            //read_temperatures(new_packet.reading);
-  
-            packet_queue.push(new_packet);
-  
-            if (PRINT_DEBUG) {
-                Serial.print("Health_Packet created: ");
-                Serial.println(packet_number);
-                print_packet(new_packet);
-            }
-  
-            packet_number++;
-        } else {
-            if (PRINT_DEBUG) {
-                Serial.println("Queue full");
-            }
-        }
-  
-        last_reading_time = millis();
-    }
-}
-
 void loop() {
     // Do readings periodically if node has sensor
     if (my_data.has_sensor) {
         if (millis() - last_reading_time >= PACKET_PERIOD) {
             if (packet_queue.size < QUEUE_SIZE_MAX) {
+                static int16_t packet_number = 0;
+
                 Packet new_packet = {
-                    .type = PacketType_Reading,
                     .reading = {},
                     .age = 0,
                     .number = packet_number,
@@ -356,8 +310,6 @@ void loop() {
 
             last_reading_time = millis();
         }
-    } else {
-        health_packet_generate();
     }
 
     // Set frequency
