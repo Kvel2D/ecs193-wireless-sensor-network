@@ -281,71 +281,67 @@ void loop_rx() {
 
 void health_packet_generate(){
     if (millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
-        if (packet_queue.size < QUEUE_SIZE_MAX) {
-            Packet new_packet = {
-              // node ID, queue size, 0.0f, 0.0f, 0.0f, 0.0f
-                .reading = {my_id, packet_queue.size, 0.0f, 0.0f, 0.0f, 0.0f},
-                .age = 0,
-                .number = packet_number,
-                .origin_id = my_id,
-                .current_id = my_id,
-            };
-  
-            //read_temperatures(new_packet.reading);
-            if(my_id > 128 && my_data.parent == NO_ID){
-                // this is gateway, so print something instead of push
-                print_packet(new_packet);
-            }else{
-                packet_queue.push(new_packet);
-            }
-            if (PRINT_DEBUG) {
-                Serial.print("Health_Packet created: ");
-                Serial.println(packet_number);
-                print_packet(new_packet);
-            }
-  
-            packet_number++;
+        Packet new_packet = {
+            // node ID, queue size, 0.0f, 0.0f, 0.0f, 0.0f
+            .reading = {my_id, packet_queue.size, 0.0f, 0.0f, 0.0f, 0.0f},
+            .age = 0,
+            .number = packet_number,
+            .origin_id = my_id,
+            .current_id = my_id,
+        };
+
+        if (my_id > 128 && my_data.parent == NO_ID) {
+            // this is gateway, so print something instead of push
+            print_packet(new_packet);
         } else {
-            if (PRINT_DEBUG) {
-                Serial.println("Queue full");
+            // Clear space by deleting older packets
+            if (packet_queue.size == QUEUE_SIZE_MAX) {
+                packet_queue.pop();
             }
+
+            packet_queue.push(new_packet);
         }
+
+        if (PRINT_DEBUG) {
+            Serial.print("Health_Packet created: ");
+            Serial.println(packet_number);
+            print_packet(new_packet);
+        }
+
+        packet_number++;
         last_healthPacket_time = millis();
     }
 }
 
 void loop() {
     // Do readings periodically if node has sensor
-    if (my_data.has_sensor) {
-        if (millis() - last_reading_time >= PACKET_PERIOD) {
-            if (packet_queue.size < QUEUE_SIZE_MAX) {
-                Packet new_packet = {
-                    .reading = {},
-                    .age = 0,
-                    .number = packet_number,
-                    .origin_id = my_id,
-                    .current_id = my_id,
-                };
+    if (my_data.has_sensor && millis() - last_reading_time >= PACKET_PERIOD) {
+        Packet new_packet = {
+            .reading = {},
+            .age = 0,
+            .number = packet_number,
+            .origin_id = my_id,
+            .current_id = my_id,
+        };
 
-                read_temperatures(new_packet.reading);
+        read_temperatures(new_packet.reading);
 
-                packet_queue.push(new_packet);
-
-                if (PRINT_DEBUG) {
-                    Serial.print("Packet created: ");
-                    Serial.println(packet_number);
-                    print_packet(new_packet);
-                }
-
-                packet_number++;
-            } else {
-                if (PRINT_DEBUG) {
-                    Serial.println("Queue full");
-                }
-            }
-
-            last_reading_time = millis();
+        // Clear space by deleting older packets
+        if (packet_queue.size == QUEUE_SIZE_MAX) {
+            packet_queue.pop();
         }
+
+        packet_queue.push(new_packet);
+
+        if (PRINT_DEBUG) {
+            Serial.print("Packet created: ");
+            Serial.println(packet_number);
+            print_packet(new_packet);
+        }
+
+        packet_number++;
+
+        last_reading_time = millis();
     } else {
         health_packet_generate();
     }
