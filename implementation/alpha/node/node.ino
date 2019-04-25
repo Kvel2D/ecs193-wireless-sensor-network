@@ -33,9 +33,11 @@ NodeData parent_data;
 #define RFM69_INT       7
 #define RFM69_RST       4
 #define LED_PIN         13
-#define LED_PERIOD      (60ul * 1000ul)
+#define LED_PERIOD      (10ul * 1000ul)
 
-#define PACKET_PERIOD   (1000ul * 60ul * 5ul)
+//#define PACKET_PERIOD   (1000ul * 60ul * 5ul)
+#define PACKET_PERIOD   (1000ul * 20ul * 1ul)
+#define HEALTH_PACKET_PERIOD  (1000ul * 40ul)
 #define RX_RATE      (600.0f)
 #define TX_RATE      (200.0f)
 
@@ -44,7 +46,9 @@ RHReliableDatagram rf69_manager(rf69, my_id);
 float current_frequency = 0.0f;
 
 uint32_t last_reading_time = 0;
+uint32_t last_healthPacket_time = 0;
 Queue packet_queue;
+static int16_t packet_number = 0;
 
 void setup() {  
     pinMode(LED_PIN, OUTPUT);
@@ -157,7 +161,6 @@ void print_packet(struct Packet p) {
     //     Serial.print(",");
     //     Serial.print(p.reading[i]);
     // }
-
     // NOTE: to print a float do: ("%d%01d", (int)(f), (int)(f * 100) % 100)
 
     // 1 uint32 (10 chars)
@@ -276,13 +279,46 @@ void loop_rx() {
     }
 }
 
+void health_packet_generate(){
+    if (millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
+        if (packet_queue.size < QUEUE_SIZE_MAX) {
+            Packet new_packet = {
+              // node ID, queue size, 0.0f, 0.0f, 0.0f, 0.0f
+                .reading = {my_id, packet_queue.size, 0.0f, 0.0f, 0.0f, 0.0f},
+                .age = 0,
+                .number = packet_number,
+                .origin_id = my_id,
+                .current_id = my_id,
+            };
+  
+            //read_temperatures(new_packet.reading);
+            if(my_id > 128 && my_data.parent == NO_ID){
+                // this is gateway, so print something instead of push
+                print_packet(new_packet);
+            }else{
+                packet_queue.push(new_packet);
+            }
+            if (PRINT_DEBUG) {
+                Serial.print("Health_Packet created: ");
+                Serial.println(packet_number);
+                print_packet(new_packet);
+            }
+  
+            packet_number++;
+        } else {
+            if (PRINT_DEBUG) {
+                Serial.println("Queue full");
+            }
+        }
+        last_healthPacket_time = millis();
+    }
+}
+
 void loop() {
     // Do readings periodically if node has sensor
     if (my_data.has_sensor) {
         if (millis() - last_reading_time >= PACKET_PERIOD) {
             if (packet_queue.size < QUEUE_SIZE_MAX) {
-                static int16_t packet_number = 0;
-
                 Packet new_packet = {
                     .reading = {},
                     .age = 0,
@@ -310,6 +346,8 @@ void loop() {
 
             last_reading_time = millis();
         }
+    } else {
+        health_packet_generate();
     }
 
     // Set frequency
