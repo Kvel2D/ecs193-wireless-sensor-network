@@ -282,7 +282,7 @@ void loop_rx() {
     }
 }
 
-void health_packet_generate(){
+void health_packet_generate() {
     if (do_first_health_packet || millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
         do_first_health_packet = false;
 
