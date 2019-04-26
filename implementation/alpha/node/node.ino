@@ -28,6 +28,7 @@ NodeData my_data;
 NodeData parent_data;
 
 #define PRINT_DEBUG     false
+#define WAIT_FOR_SERIAL false
 #define RF69_FREQ       433.0
 #define RFM69_CS        8
 #define RFM69_INT       7
@@ -56,10 +57,11 @@ void setup() {
 
     Serial.begin(115200);
 
-    // Uncomment this to start running only after serial monitor is open
-    // while (!Serial) {
-    //     delay(1);
-    // }
+    if (WAIT_FOR_SERIAL) {
+        while (!Serial) {
+            delay(1);
+        }
+    }
 
     // Read node and parent data
     memcpy_P(&my_data, &tree_data[my_id], sizeof(NodeData));
@@ -293,7 +295,7 @@ void health_packet_generate(){
             .current_id = my_id,
         };
 
-        if (my_id > 128 && my_data.parent == NO_ID) {
+        if (my_data.parent == NO_ID) {
             // this is gateway, so print something instead of push
             print_packet(new_packet);
         } else {
@@ -347,7 +349,7 @@ void loop() {
         packet_number++;
 
         last_reading_time = millis();
-    } else {
+    } else if (my_id > 128) {
         health_packet_generate();
     }
 
