@@ -27,17 +27,16 @@ uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 NodeData my_data;
 NodeData parent_data;
 
-#define PRINT_DEBUG     true
+#define PRINT_DEBUG     false
 #define RF69_FREQ       433.0
 #define RFM69_CS        8
 #define RFM69_INT       7
 #define RFM69_RST       4
 #define LED_PIN         13
-#define LED_PERIOD      (10ul * 1000ul)
+#define LED_PERIOD      (60ul * 1000ul)
 
-//#define PACKET_PERIOD   (1000ul * 60ul * 5ul)
-#define PACKET_PERIOD   (1000ul * 20ul * 1ul)
-#define HEALTH_PACKET_PERIOD  (1000ul * 40ul)
+#define PACKET_PERIOD   (1000ul * 60ul * 5ul)
+#define HEALTH_PACKET_PERIOD  (1000ul * 60ul * 60ul)
 #define RX_RATE      (600.0f)
 #define TX_RATE      (200.0f)
 
@@ -49,6 +48,8 @@ uint32_t last_reading_time = 0;
 uint32_t last_healthPacket_time = 0;
 Queue packet_queue;
 static int16_t packet_number = 0;
+bool do_first_health_packet = true;
+bool do_first_reading_packet = true;
 
 void setup() {  
     pinMode(LED_PIN, OUTPUT);
@@ -280,7 +281,9 @@ void loop_rx() {
 }
 
 void health_packet_generate(){
-    if (millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
+    if (do_first_health_packet || millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
+        do_first_health_packet = false;
+
         Packet new_packet = {
             // node ID, queue size, 0.0f, 0.0f, 0.0f, 0.0f
             .reading = {my_id, packet_queue.size, 0.0f, 0.0f, 0.0f, 0.0f},
@@ -315,7 +318,9 @@ void health_packet_generate(){
 
 void loop() {
     // Do readings periodically if node has sensor
-    if (my_data.has_sensor && millis() - last_reading_time >= PACKET_PERIOD) {
+    if (my_data.has_sensor && (do_first_reading_packet || millis() - last_reading_time >= PACKET_PERIOD)) {
+        do_first_reading_packet = false;
+
         Packet new_packet = {
             .reading = {},
             .age = 0,
