@@ -205,6 +205,8 @@ void loop_tx() {
     }
     do {
         tx_success = false;
+        uint32_t start_time = millis();
+        uint8_t tx_time = 0;
         // Turn on radio
         rf69.setModeIdle();
 
@@ -213,6 +215,7 @@ void loop_tx() {
 
             // Transmit
             tx_success = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), my_data.parent);
+            tx_time = millis() - start_time;
         }
         rf69.sleep();
 
@@ -227,7 +230,7 @@ void loop_tx() {
         
         for (size_t i = 0; i < packet_queue.size; i++) {
             packet_queue.data[i].age += tx_time;
-        }
+        }  // update the packet ages due to transmission time 
 
         if (PRINT_DEBUG && tx_success) {
             Serial.println("Chaining TX");
@@ -244,6 +247,7 @@ void loop_rx() {
 
     bool rx_success;
     do {
+        rx_success = false;
         uint32_t start_time = millis();
 
         // Turn on radio
@@ -261,7 +265,7 @@ void loop_rx() {
                 // Wait for a message addressed to us from the client
                 uint8_t read_len = buffer_len;
                 uint8_t from;
-                if (rf69_manager.recvfromAck(buffer, &read_len, &from)) {
+                if (rx_success = rf69_manager.recvfromAck(buffer, &read_len, &from)) {
                     // Turn off radio
                     rf69.sleep();
                     
@@ -269,7 +273,6 @@ void loop_rx() {
                     buffer[read_len] = 0; 
 
                     memcpy(&p, buffer, sizeof(Packet));
-                    rx_success = true;
 
                     p.current_id = my_id;
 
