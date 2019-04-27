@@ -184,9 +184,7 @@ void print_packet(struct Packet p) {
         (int)(p.reading[3]), (int)(p.reading[3] * 100) % 100 / 10, 
         (int)(p.reading[4]), (int)(p.reading[4] * 100) % 100 / 10,
         (int)(p.reading[5]), (int)(p.reading[5] * 100) % 100 / 10);
-
     Serial.println(print_packet_buffer);
-
     if ((size_t)print_size > sizeof(print_packet_buffer)) {
         Serial.println("print_packet_buffer too small");
     }
@@ -240,7 +238,7 @@ void loop_rx() {
         uint8_t len = sizeof(buffer);
         rf69.recv(buffer, &len);
     }
-    
+    int previous_id = 0;
     Packet p;
     uint32_t start_time = millis();
     while (millis() - start_time < 10) {
@@ -257,7 +255,7 @@ void loop_rx() {
 
                 memcpy(&p, buffer, sizeof(Packet));
                 rx_success = true;
-
+                previous_id = p.current_id;
                 p.current_id = my_id;
 
                 // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
@@ -278,6 +276,7 @@ void loop_rx() {
         if (PRINT_DEBUG) {
             Serial.print("|RX,");
         }
+        p.current_id = previous_id;
         print_packet(p);
     }
 }
@@ -287,8 +286,7 @@ void health_packet_generate() {
         do_first_health_packet = false;
 
         Packet new_packet = {
-            // node ID, queue size, 0.0f, 0.0f, 0.0f, 0.0f
-            .reading = {my_id, packet_queue.size, 0.0f, 0.0f, 0.0f, 0.0f},
+            .reading = {(float)packet_queue.size},
             .age = 0,
             .number = packet_number,
             .origin_id = my_id,
