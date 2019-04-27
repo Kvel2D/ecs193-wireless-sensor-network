@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <Adafruit_SleepyDog.h>
 
 #include "sensor.h"
 #include "tree_data.h"
@@ -192,16 +193,32 @@ void print_packet(struct Packet p) {
     }
 }
 
+void sleep(uint32_t sleep_time) {
+    static uint32_t time_slept = 0;
+    time_slept += sleep_time;
+
+    // NOTE: Don't sleep for real for the first 30s so that serial doesn't disconnect and board can be reflashed easily
+    if (my_data.parent == NO_ID || time_slept < 30ul * 1000ul) {
+        // Gateway node doesn't sleep to prevent serial disconnect
+        delay(sleep_time);
+    } else {
+        // Other nodes sleep normally
+        while (sleep_time > 0) {
+            int actual_sleep_time = (uint32_t) Watchdog.sleep(sleep_time);
+
+            if (actual_sleep_time <= sleep_time) {
+                sleep_time -= actual_sleep_time;
+            } else {
+                sleep_time = 0;
+            }
+        }
+    }
+}
+
 void loop_tx() {
     bool tx_success = false;
     uint32_t sleep_time = expovariate(TX_RATE);
-    sleep_time = convert_to_sleepydog_time(sleep_time);
-
-    rf69.sleep();
-    delay(sleep_time);
-
-    // Turn on radio
-    rf69.setModeIdle();
+    sleep(sleep_time);
 
     if (packet_queue.size > 0) {
         for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
@@ -210,7 +227,9 @@ void loop_tx() {
         Packet packet = packet_queue.front();
 
         // Transmit
+        rf69.setModeIdle();
         tx_success = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), my_data.parent);
+        rf69.sleep();
     }
 
     if (tx_success) {
@@ -227,11 +246,10 @@ void loop_rx() {
     static uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
 
     uint32_t sleep_time = expovariate(RX_RATE);
-    sleep_time = convert_to_sleepydog_time(sleep_time);
-    delay(sleep_time);
+    sleep(sleep_time);
 
     bool rx_success = false;
-    
+
     // Turn on radio
     rf69.setModeRx();
 
@@ -251,7 +269,7 @@ void loop_rx() {
             if (rf69_manager.recvfromAck(buffer, &len, &from)) {
                 // Turn off radio
                 rf69.sleep();
-                
+
                 // zero out remaining string
                 buffer[len] = 0; 
 
@@ -288,7 +306,7 @@ void health_packet_generate() {
 
         Packet new_packet = {
             // node ID, queue size, 0.0f, 0.0f, 0.0f, 0.0f
-            .reading = {my_id, packet_queue.size, 0.0f, 0.0f, 0.0f, 0.0f},
+            .reading = {},
             .age = 0,
             .number = packet_number,
             .origin_id = my_id,
