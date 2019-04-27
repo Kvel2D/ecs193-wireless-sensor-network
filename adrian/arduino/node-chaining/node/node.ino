@@ -254,7 +254,7 @@ void loop_tx() {
       Serial.println("chaining");
     }
   } while (tx_result && packet_queue.size > 0);
-}
+};
 
 void loop_rx() {
   uint32_t sleep_time = expovariate(RX_RATE);

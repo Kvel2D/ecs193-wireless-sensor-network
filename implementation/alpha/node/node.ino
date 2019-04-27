@@ -199,87 +199,105 @@ void loop_tx() {
 
     rf69.sleep();
     delay(sleep_time);
-
-    // Turn on radio
-    rf69.setModeIdle();
-
-    if (packet_queue.size > 0) {
-        for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
-            packet_queue.data[i].age += sleep_time;
-        }
-        Packet packet = packet_queue.front();
-
-        // Transmit
-        tx_success = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), my_data.parent);
+    // update packet ages
+    for (size_t i = 0; i < packet_queue.size; i++) {
+        packet_queue.data[i].age += sleep_time;
     }
+    do {
+        tx_success = false;
+        // Turn on radio
+        rf69.setModeIdle();
 
-    if (tx_success) {
-        Packet popped = packet_queue.pop();
+        if (packet_queue.size > 0) {
+            Packet packet = packet_queue.front();
 
-        if (PRINT_DEBUG) {
-            Serial.print("|TX,");
-            print_packet(popped);
+            // Transmit
+            tx_success = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), my_data.parent);
         }
-    }
+        rf69.sleep();
+
+        if (tx_success) {
+            Packet popped = packet_queue.pop();
+
+            if (PRINT_DEBUG) {
+                Serial.print("|TX,");
+                print_packet(popped);
+            }
+        }
+        
+        for (size_t i = 0; i < packet_queue.size; i++) {
+            packet_queue.data[i].age += tx_time;
+        }
+
+        if (PRINT_DEBUG && tx_success) {
+            Serial.println("Chaining TX");
+        } 
+    } while (tx_success && packet_queue.size > 0); // if last transmission was successful and more packets exist
 }
 
 void loop_rx() {
     static uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
-
+    static const uint8_t buffer_len = sizeof(buffer);
     uint32_t sleep_time = expovariate(RX_RATE);
     sleep_time = convert_to_sleepydog_time(sleep_time);
     delay(sleep_time);
 
-    bool rx_success = false;
-    
-    // Turn on radio
-    rf69.setModeRx();
+    bool rx_success;
+    do {
+        uint32_t start_time = millis();
 
-    // Clear buffer
-    if (rf69_manager.available()) {
-        uint8_t len = sizeof(buffer);
-        rf69.recv(buffer, &len);
-    }
-    
-    Packet p;
-    uint32_t start_time = millis();
-    while (millis() - start_time < 10) {
+        // Turn on radio
+        rf69.setModeRx();
+
+        // Clear buffer
         if (rf69_manager.available()) {
-            // Wait for a message addressed to us from the client
-            uint8_t len = sizeof(buffer);
-            uint8_t from;
-            if (rf69_manager.recvfromAck(buffer, &len, &from)) {
-                // Turn off radio
-                rf69.sleep();
-                
-                // zero out remaining string
-                buffer[len] = 0; 
+            uint8_t read_len = buffer_len;
+            rf69.recv(buffer, &read_len);
+        }
+        
+        Packet p;
+        while (millis() - start_time < 10) {
+            if (rf69_manager.available()) {
+                // Wait for a message addressed to us from the client
+                uint8_t read_len = buffer_len;
+                uint8_t from;
+                if (rf69_manager.recvfromAck(buffer, &read_len, &from)) {
+                    // Turn off radio
+                    rf69.sleep();
+                    
+                    // zero out remaining string
+                    buffer[read_len] = 0; 
 
-                memcpy(&p, buffer, sizeof(Packet));
-                rx_success = true;
+                    memcpy(&p, buffer, sizeof(Packet));
+                    rx_success = true;
 
-                p.current_id = my_id;
+                    p.current_id = my_id;
 
-                // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
-                if (my_data.parent != NO_ID) {
-                    packet_queue.push(p);
+                    // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
+                    if (my_data.parent != NO_ID) {
+                        packet_queue.push(p);
+                    }
+
+                    break;
                 }
-
-                break;
             }
         }
-    }
 
-    // Turn off radio
-    rf69.sleep();
-    
-    // Only last node prints to serial
-    if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG)) {
-        if (PRINT_DEBUG) {
-            Serial.print("|RX,");
+        // Turn off radio
+        rf69.sleep();
+        
+        // Only last node prints to serial
+        if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG)) {
+            if (PRINT_DEBUG) {
+                Serial.print("|RX,");
+            }
+            print_packet(p);
         }
-        print_packet(p);
-    }
+
+        if (PRINT_DEBUG && rx_success) {
+            Serial.println("Chaining RX");
+        }
+    } while (rx_success); // if last transmission period successful, repeat
 }
 
 void health_packet_generate() {
