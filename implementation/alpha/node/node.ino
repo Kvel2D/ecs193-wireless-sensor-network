@@ -36,11 +36,12 @@ NodeData parent_data;
 #define RFM69_RST       4
 #define LED_PIN         13
 #define LED_PERIOD      (60ul * 1000ul)
+#define FAKE_SLEEP_DURATION     (60ul * 1000ul)
 
-#define PACKET_PERIOD   (1000ul * 60ul * 5ul)
-#define HEALTH_PACKET_PERIOD  (1000ul * 60ul * 60ul)
-#define RX_RATE      (600.0f)
-#define TX_RATE      (200.0f)
+#define PACKET_PERIOD           (1000ul * 60ul * 5ul)
+#define HEALTH_PACKET_PERIOD    (1000ul * 60ul * 60ul)
+#define RX_RATE                 (600.0f)
+#define TX_RATE                 (200.0f)
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, my_id);
@@ -114,7 +115,7 @@ void setup() {
     rf69_manager.setRetries(0);
     rf69_manager.setTimeout(10);
 
-    last_reading_time = millis();
+    last_reading_time = correct_millis();
 }
 
 int free_ram() {
@@ -137,6 +138,11 @@ uint32_t convert_to_sleepydog_time(uint32_t time) {
         sleepydog_time = 15;
     }
     return sleepydog_time;
+}
+
+uint32_t millis_error = 0;
+uint32_t correct_millis() {
+    return millis() + millis_error;
 }
 
 void blink_led_periodically() {
@@ -195,22 +201,34 @@ void print_packet(struct Packet p) {
 
 void sleep(uint32_t sleep_time) {
     static uint32_t time_slept = 0;
-    time_slept += sleep_time;
 
-    // NOTE: Don't sleep for real for the first 30s so that serial doesn't disconnect and board can be reflashed easily
-    if (my_data.parent == NO_ID || time_slept < 30ul * 1000ul) {
+    if (time_slept < FAKE_SLEEP_DURATION) {
+        time_slept += sleep_time;
+    }
+
+    // NOTE: Don't sleep for real at the start so that serial doesn't disconnect and board can be reflashed easily
+    if (my_data.parent == NO_ID || time_slept < FAKE_SLEEP_DURATION) {
         // Gateway node doesn't sleep to prevent serial disconnect
         delay(sleep_time);
     } else {
-        // Other nodes sleep normally
-        while (sleep_time > 0) {
-            int actual_sleep_time = (uint32_t) Watchdog.sleep(sleep_time);
+        // Other nodes sleep for real
+        uint32_t sleep_time_left = sleep_time;
+        uint32_t time_before = millis();
 
-            if (actual_sleep_time <= sleep_time) {
-                sleep_time -= actual_sleep_time;
+        while (sleep_time_left > 0) {
+            int actual_sleep_time = (uint32_t) Watchdog.sleep(sleep_time_left);
+
+            if (actual_sleep_time <= sleep_time_left) {
+                sleep_time_left -= actual_sleep_time;
             } else {
-                sleep_time = 0;
+                sleep_time_left = 0;
             }
+        }
+
+        // Record clock error
+        uint32_t perceived_sleep_time = millis() - time_before;
+        if (perceived_sleep_time < sleep_time) {
+            millis_error += sleep_time - perceived_sleep_time;
         }
     }
 }
@@ -260,8 +278,8 @@ void loop_rx() {
     }
     
     Packet p;
-    uint32_t start_time = millis();
-    while (millis() - start_time < 10) {
+    uint32_t start_time = correct_millis();
+    while (correct_millis() - start_time < 10) {
         if (rf69_manager.available()) {
             // Wait for a message addressed to us from the client
             uint8_t len = sizeof(buffer);
@@ -301,7 +319,7 @@ void loop_rx() {
 }
 
 void health_packet_generate() {
-    if (do_first_health_packet || millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
+    if (do_first_health_packet || correct_millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
         do_first_health_packet = false;
 
         Packet new_packet = {
@@ -332,13 +350,13 @@ void health_packet_generate() {
         }
 
         packet_number++;
-        last_healthPacket_time = millis();
+        last_healthPacket_time = correct_millis();
     }
 }
 
 void loop() {
     // Do readings periodically if node has sensor
-    if (my_data.has_sensor && (do_first_reading_packet || millis() - last_reading_time >= PACKET_PERIOD)) {
+    if (my_data.has_sensor && (do_first_reading_packet || correct_millis() - last_reading_time >= PACKET_PERIOD)) {
         do_first_reading_packet = false;
 
         Packet new_packet = {
@@ -366,7 +384,7 @@ void loop() {
 
         packet_number++;
 
-        last_reading_time = millis();
+        last_reading_time = correct_millis();
     } else if (my_id > 128) {
         health_packet_generate();
     }
