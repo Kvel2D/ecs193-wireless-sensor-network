@@ -212,17 +212,11 @@ void sleep(uint32_t sleep_time) {
         delay(sleep_time);
     } else {
         // Other nodes sleep for real
-        uint32_t sleep_time_left = sleep_time;
+        int sleep_time_left = (int)sleep_time;
         uint32_t time_before = millis();
 
         while (sleep_time_left > 0) {
-            int actual_sleep_time = (uint32_t) Watchdog.sleep(sleep_time_left);
-
-            if (actual_sleep_time <= sleep_time_left) {
-                sleep_time_left -= actual_sleep_time;
-            } else {
-                sleep_time_left = 0;
-            }
+            sleep_time_left -= Watchdog.sleep(sleep_time_left);
         }
 
         // Record clock error
