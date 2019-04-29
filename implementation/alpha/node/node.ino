@@ -240,7 +240,8 @@ void loop_rx() {
         uint8_t len = sizeof(buffer);
         rf69.recv(buffer, &len);
     }
-    
+
+    uint8_t previous_node_id = 0;
     Packet p;
     uint32_t start_time = millis();
     while (millis() - start_time < 10) {
@@ -258,6 +259,7 @@ void loop_rx() {
                 memcpy(&p, buffer, sizeof(Packet));
                 rx_success = true;
 
+                previous_node_id = p.current_id;
                 p.current_id = my_id;
 
                 // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
@@ -278,6 +280,7 @@ void loop_rx() {
         if (PRINT_DEBUG) {
             Serial.print("|RX,");
         }
+        p.current_id = previous_node_id;
         print_packet(p);
     }
 }
@@ -285,10 +288,9 @@ void loop_rx() {
 void health_packet_generate() {
     if (do_first_health_packet || millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
         do_first_health_packet = false;
-
+        
         Packet new_packet = {
-            // node ID, queue size, 0.0f, 0.0f, 0.0f, 0.0f
-            .reading = {my_id, packet_queue.size, 0.0f, 0.0f, 0.0f, 0.0f},
+            .reading = {(float)packet_queue.size,0.0f,0.0f,0.0f,0.0f,0.0f},
             .age = 0,
             .number = packet_number,
             .origin_id = my_id,
