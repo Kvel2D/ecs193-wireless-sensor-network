@@ -27,7 +27,7 @@ uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 NodeData my_data;
 NodeData parent_data;
 
-#define PRINT_DEBUG true
+#define PRINT_DEBUG false
 #define WAIT_FOR_SERIAL false
 #define RF69_FREQ 433.0
 #define RFM69_CS 8
@@ -297,7 +297,8 @@ void loop_rx() {
       print_packet(p);
     }
 
-  } while (rx_success);  // if last transmission period successful, repeat
+  } while (rx_success && packet_queue.size < QUEUE_SIZE_MAX);
+  // if last transmission period successful, repeat
 }
 
 void health_packet_generate() {
