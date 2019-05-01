@@ -10,13 +10,13 @@ struct NodeData {
 const PROGMEM NodeData tree_data[] = {
 // 0
     {
-        .rx_frequency = 435.00f,
-        .parent = 1,
-        .has_sensor = true,
+        .rx_frequency = 400.00f,
+        .parent = NO_ID,
+        .has_sensor = false,
     },
 // 1
     {
-        .rx_frequency = 435.25f,
+        .rx_frequency = 400.00f,
         .parent = NO_ID,
         .has_sensor = false,
     },
