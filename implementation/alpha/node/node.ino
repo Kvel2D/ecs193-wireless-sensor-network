@@ -8,6 +8,7 @@
 
 #include "sensor.h"
 #include "tree_data.h"
+#include "duplicate.h"
 
 struct Packet {
     float reading[NUM_SENSORS];
@@ -41,6 +42,7 @@ NodeData parent_data;
 #define RX_RATE      (600.0f)
 #define TX_RATE      (200.0f)
 
+
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, my_id);
 float current_frequency = 0.0f;
@@ -51,6 +53,8 @@ Queue packet_queue;
 static int16_t packet_number = 0;
 bool do_first_health_packet = true;
 bool do_first_reading_packet = true;
+
+
 
 void setup() {  
     pinMode(LED_PIN, OUTPUT);
@@ -73,6 +77,8 @@ void setup() {
     if (my_data.has_sensor) {
         setup_sensors();
     }
+
+    initialize_children_array();
 
     pinMode(2, OUTPUT); // set up for the sensor voltage
     pinMode(RFM69_RST, OUTPUT);
@@ -262,10 +268,9 @@ void loop_rx() {
                     memcpy(&p, buffer, sizeof(Packet));
                     rx_success = true;
 
-                    p.current_id = my_id;
-
                     // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
-                    if (my_data.parent != NO_ID) {
+                    if (my_data.parent != NO_ID && !is_duplicate(p.number, p.current_id)) {
+                        p.current_id = my_id;
                         packet_queue.push(p);
                     }
 
