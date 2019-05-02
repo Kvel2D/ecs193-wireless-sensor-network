@@ -11,7 +11,7 @@
 
 struct Packet {
     uint16_t reading[NUM_SENSORS];
-    uint32_t age;
+    uint16_t age;
     uint8_t number;
     uint8_t origin_id;
     uint8_t current_id;
@@ -48,6 +48,7 @@ float current_frequency = 0.0f;
 uint32_t last_reading_time = 0;
 uint32_t last_healthPacket_time = 0;
 Queue packet_queue;
+uint16_t packet_queue_age_ms;
 static int8_t packet_number = 0;
 bool do_first_health_packet = true;
 bool do_first_reading_packet = true;
@@ -239,7 +240,7 @@ void loop_rx() {
     do {
         rx_success = false;
         uint32_t start_time = millis();
-    
+
         // Turn on radio
         rf69.setModeRx();
 
@@ -248,7 +249,7 @@ void loop_rx() {
             uint8_t len = sizeof(buffer);
             rf69.recv(buffer, &len);
         }
-    
+
         Packet p;
         while (millis() - start_time < 10) {
             if (rf69_manager.available()) {
@@ -329,7 +330,14 @@ void health_packet_generate() {
 void updatePacketAge(uint32_t time) {
     if (packet_queue.size > 0) {
         for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
-            packet_queue.data[i].age += time;
+            packet_queue_age_ms[i] += time;
+            
+            // NOTE: don't need to reset ms counter when adding packets because inaccuracy of <1s doesn't matter
+            if (packet_queue_age_ms[i] > 1000) {
+                uint16_t d_seconds = packet_queue_age_ms[i] / 1000;
+                packet_queue.data[i].age += d_seconds;
+                packet_queue_age_ms[i] -= d_seconds;
+            }
         }
     }
 }
