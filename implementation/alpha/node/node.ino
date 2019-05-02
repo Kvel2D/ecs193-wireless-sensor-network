@@ -150,7 +150,7 @@ uint16_t compress_float(float f) {
     return (uint16_t) round(f / 40.0f * 65536.0f);
 }
 
-float uncompress_float(uint16_t f) {
+float decompress_float(uint16_t f) {
     return f * 40.0f / 65536.0f;
 }
 
@@ -182,12 +182,12 @@ void print_packet(struct Packet p) {
         p.current_id, 
         p.number, 
         p.origin_id, 
-        print_float(uncompress_float(p.reading[0])),
-        print_float(uncompress_float(p.reading[1])),
-        print_float(uncompress_float(p.reading[2])),
-        print_float(uncompress_float(p.reading[3])),
-        print_float(uncompress_float(p.reading[4])),
-        print_float(uncompress_float(p.reading[5])));
+        print_float(decompress_float(p.reading[0])),
+        print_float(decompress_float(p.reading[1])),
+        print_float(decompress_float(p.reading[2])),
+        print_float(decompress_float(p.reading[3])),
+        print_float(decompress_float(p.reading[4])),
+        print_float(decompress_float(p.reading[5])));
 
     Serial.println(print_packet_buffer);
 
