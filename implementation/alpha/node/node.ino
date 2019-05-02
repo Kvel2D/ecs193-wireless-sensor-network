@@ -336,7 +336,7 @@ void updatePacketAge(uint32_t time) {
             if (packet_queue_age_ms[i] > 1000 && packet_queue.data[i].age < 65000) {
                 uint16_t d_seconds = packet_queue_age_ms[i] / 1000;
                 packet_queue.data[i].age += d_seconds;
-                packet_queue_age_ms[i] -= d_seconds;
+                packet_queue_age_ms[i] -= d_seconds * 1000;
             }
         }
     }
