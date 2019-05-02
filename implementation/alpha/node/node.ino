@@ -147,11 +147,11 @@ uint16_t compress_float(float f) {
         f = 40.0f;
     }
 
-    return (uint16_t) round(f / 40.0f * 65536.0f);
+    return (uint16_t) round(f / 40.0f * UINT16_MAX);
 }
 
 float decompress_float(uint16_t f) {
-    return f * 40.0f / 65536.0f;
+    return f * 40.0f / UINT16_MAX;
 }
 
 void blink_led_periodically() {
