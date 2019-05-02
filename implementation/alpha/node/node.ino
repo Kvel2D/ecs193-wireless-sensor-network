@@ -12,7 +12,7 @@
 struct Packet {
     float reading[NUM_SENSORS];
     uint32_t age;
-    uint16_t number;
+    uint8_t number;
     uint8_t origin_id;
     uint8_t current_id;
 };
@@ -48,7 +48,7 @@ float current_frequency = 0.0f;
 uint32_t last_reading_time = 0;
 uint32_t last_healthPacket_time = 0;
 Queue packet_queue;
-static int16_t packet_number = 0;
+static int8_t packet_number = 0;
 bool do_first_health_packet = true;
 bool do_first_reading_packet = true;
 
@@ -152,27 +152,13 @@ void blink_led_periodically() {
 }
 
 void print_packet(struct Packet p) {
-    // NOTE: old printing with multiple prints, remove when sure that it's not needed
-    // Serial.print(p.age);
-    // Serial.print(",");
-    // Serial.print(p.current_id);
-    // Serial.print(",");
-    // Serial.print(p.number);
-    // Serial.print(",");
-    // Serial.print(p.origin_id);
-    // for (int i = 0; i < NUM_SENSORS; i++) {
-    //     Serial.print(",");
-    //     Serial.print(p.reading[i]);
-    // }
-    // NOTE: to print a float do: ("%d%01d", (int)(f), (int)(f * 100) % 100)
-
     // 1 uint32 (10 chars)
-    // 3 uint16 (5 chars)
+    // 3 uint8 (3 chars)
     // 6 floats (formatted as -123.45, so 7 chars)
     // 9 commas
     // null-terminator
     // 1 more char for leeway
-    static char print_packet_buffer[10 + 3 * 5 + 6 * 6 + 9 + 1 + 1];
+    static char print_packet_buffer[10 + 3 * 3 + 6 * 6 + 9 + 1 + 1];
     int print_size = snprintf(print_packet_buffer, sizeof(print_packet_buffer), "%lu,%u,%u,%u,%d.%01d,%d.%01d,%d.%01d,%d.%01d,%d.%01d,%d.%01d", 
         p.age, 
         p.current_id, 
