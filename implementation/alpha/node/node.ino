@@ -140,18 +140,18 @@ uint32_t convert_to_sleepydog_time(uint32_t time) {
 }
 
 uint16_t compress_float(float f) {
-    // Limit to 0-100 range
+    // Limit to 0-99 range
     if (f < 0.0f) {
         f = 0.0f;
-    } else if (f > 100.0f) {
-        f = 100.0f;
+    } else if (f > 99.0f) {
+        f = 99.0f;
     }
 
-    return (uint16_t) round(f / 100.0f * UINT16_MAX);
+    return (uint16_t) round(f / 99.0f * UINT16_MAX);
 }
 
 float decompress_float(uint16_t f) {
-    return f * 100.0f / UINT16_MAX;
+    return f * 99.0f / UINT16_MAX;
 }
 
 void blink_led_periodically() {
@@ -170,13 +170,13 @@ void blink_led_periodically() {
 #define print_float(x) (int) x, ((int) round(x * 10.0f)) % 10
 
 void print_packet(struct Packet p) {
-    // 1 uint32 (10 chars)
+    // 1 uint16 (5 chars)
     // 3 uint8 (3 chars)
     // 6 floats (formatted as 12.3, so 4 chars)
     // 9 commas
     // null-terminator
     // 1 more char for leeway
-    static char print_packet_buffer[10 + 3 * 3 + 6 * 4 + 9 + 1 + 1];
+    static char print_packet_buffer[5 + 3 * 3 + 6 * 4 + 9 + 1 + 1];
     int print_size = snprintf(print_packet_buffer, sizeof(print_packet_buffer), "%lu,%u,%u,%u,%d.%d,%d.%d,%d.%d,%d.%d,%d.%d,%d.%d", 
         p.age, 
         p.current_id, 
