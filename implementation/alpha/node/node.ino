@@ -140,18 +140,18 @@ uint32_t convert_to_sleepydog_time(uint32_t time) {
 }
 
 uint16_t compress_float(float f) {
-    // Limit to 0-40 range
+    // Limit to 0-100 range
     if (f < 0.0f) {
         f = 0.0f;
-    } else if (f > 40.0f) {
-        f = 40.0f;
+    } else if (f > 100.0f) {
+        f = 100.0f;
     }
 
-    return (uint16_t) round(f / 40.0f * UINT16_MAX);
+    return (uint16_t) round(f / 100.0f * UINT16_MAX);
 }
 
 float decompress_float(uint16_t f) {
-    return f * 40.0f / UINT16_MAX;
+    return f * 100.0f / UINT16_MAX;
 }
 
 void blink_led_periodically() {
