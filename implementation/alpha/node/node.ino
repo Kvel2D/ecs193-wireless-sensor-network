@@ -139,11 +139,16 @@ uint32_t convert_to_sleepydog_time(uint32_t time) {
 }
 
 uint16_t compress_float(float f) {
-    // Limit to 0-99 range
-    if (f < 0.0f) {
+    // NOTE: 0.0f is reserved for N/A value of -127.0f when no sensor is connected or sensor is faulty
+    if (f == -127.0f) {
         f = 0.0f;
-    } else if (f > 99.0f) {
-        f = 99.0f;
+    } else {
+        // Limit to 0.1f-99.0f range
+        if (f < 0.1f) {
+            f = 0.1f;
+        } else if (f > 99.0f) {
+            f = 99.0f;
+        }
     }
 
     return (uint16_t) round(f / 99.0f * UINT16_MAX);
