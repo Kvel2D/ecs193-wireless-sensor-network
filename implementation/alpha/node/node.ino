@@ -48,7 +48,7 @@ float current_frequency = 0.0f;
 uint32_t last_reading_time = 0;
 uint32_t last_healthPacket_time = 0;
 Queue packet_queue;
-static int8_t packet_number = 0;
+static uint8_t packet_number = 0;
 bool do_first_health_packet = true;
 bool do_first_reading_packet = true;
 
