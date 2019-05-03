@@ -28,7 +28,7 @@ uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 NodeData my_data;
 NodeData parent_data;
 
-#define PRINT_DEBUG     true
+#define PRINT_DEBUG     false
 #define WAIT_FOR_SERIAL false
 #define RF69_FREQ       433.0
 #define RFM69_CS        8
@@ -39,8 +39,8 @@ NodeData parent_data;
 
 #define PACKET_PERIOD   (1000ul * 30ul)
 #define HEALTH_PACKET_PERIOD  (1000ul * 60ul * 60ul)
-#define RX_RATE      (300.0f)
-#define TX_RATE      (100.0f)
+#define RX_RATE      (600.0f)
+#define TX_RATE      (200.0f)
 
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
@@ -350,34 +350,32 @@ void loop() {
     if (my_data.has_sensor && (do_first_reading_packet || millis() - last_reading_time >= PACKET_PERIOD)) {
         do_first_reading_packet = false;
 
-        int random_dup = random(1, 3);
 
-        for(int k = 0; k<random_dup; k++) {
-              Packet new_packet = {
-                .reading = {},
-                .age = 0,
-                .number = packet_number,
-                .origin_id = my_id,
-                .current_id = my_id,
-            };
-    
-            read_temperatures(new_packet.reading);
-    
-            // Clear space by deleting older packets
-            if (packet_queue.size == QUEUE_SIZE_MAX) {
-                packet_queue.pop();
-            }
-    
-            packet_queue.push(new_packet);
-    
-            if (PRINT_DEBUG) {
-                Serial.print("Packet created: ");
-                Serial.println(packet_number);
-                print_packet(new_packet);
-            }
-          
+
+        Packet new_packet = {
+            .reading = {},
+            .age = 0,
+            .number = packet_number,
+            .origin_id = my_id,
+            .current_id = my_id,
+        };
+
+        read_temperatures(new_packet.reading);
+
+        // Clear space by deleting older packets
+        if (packet_queue.size == QUEUE_SIZE_MAX) {
+            packet_queue.pop();
         }
 
+        packet_queue.push(new_packet);
+
+        if (PRINT_DEBUG) {
+            Serial.print("Packet created: ");
+            Serial.println(packet_number);
+            print_packet(new_packet);
+        }
+          
+        
         packet_number++;
 
         last_reading_time = millis();
