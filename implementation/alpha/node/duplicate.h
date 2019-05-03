@@ -1,7 +1,7 @@
 #define MAX_NUM_CHILDREN    (5)
 
-int8_t children[MAX_NUM_CHILDREN];
-int8_t last_received_packet[MAX_NUM_CHILDREN];
+int16_t children[MAX_NUM_CHILDREN];
+int16_t last_received_packet[MAX_NUM_CHILDREN];
 
 /* 
  *  initializes all slots in children array to -1
