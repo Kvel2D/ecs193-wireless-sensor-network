@@ -28,7 +28,7 @@ uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 NodeData my_data;
 NodeData parent_data;
 
-#define PRINT_DEBUG     false
+#define PRINT_DEBUG     true
 #define WAIT_FOR_SERIAL false
 #define RF69_FREQ       433.0
 #define RFM69_CS        8
@@ -37,10 +37,10 @@ NodeData parent_data;
 #define LED_PIN         13
 #define LED_PERIOD      (60ul * 1000ul)
 
-#define PACKET_PERIOD   (1000ul * 60ul * 5ul)
+#define PACKET_PERIOD   (1000ul * 30ul)
 #define HEALTH_PACKET_PERIOD  (1000ul * 60ul * 60ul)
-#define RX_RATE      (600.0f)
-#define TX_RATE      (200.0f)
+#define RX_RATE      (300.0f)
+#define TX_RATE      (100.0f)
 
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
@@ -253,6 +253,7 @@ void loop_rx() {
         }
     
         Packet p;
+        bool duplicate = false;
         while (millis() - start_time < 10) {
             if (rf69_manager.available()) {
                 // Wait for a message addressed to us from the client
@@ -269,9 +270,15 @@ void loop_rx() {
                     rx_success = true;
 
                     // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
-                    if (my_data.parent != NO_ID && !is_duplicate(p.number, p.current_id)) {
+                    duplicate = is_duplicate(p.number, p.current_id);
+                    if (my_data.parent != NO_ID && !duplicate) {
                         p.current_id = my_id;
                         packet_queue.push(p);
+                    } 
+
+                    if(duplicate && PRINT_DEBUG) {
+                      Serial.print("duplicate: ");
+                      Serial.println(p.number);
                     }
 
                     break;
@@ -283,7 +290,7 @@ void loop_rx() {
         rf69.sleep();
         
         // Only last node prints to serial
-        if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG)) {
+        if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG) && (!duplicate)) {
             if (PRINT_DEBUG) {
                 Serial.print("|RX,");
             }
@@ -343,27 +350,32 @@ void loop() {
     if (my_data.has_sensor && (do_first_reading_packet || millis() - last_reading_time >= PACKET_PERIOD)) {
         do_first_reading_packet = false;
 
-        Packet new_packet = {
-            .reading = {},
-            .age = 0,
-            .number = packet_number,
-            .origin_id = my_id,
-            .current_id = my_id,
-        };
+        int random_dup = random(1, 3);
 
-        read_temperatures(new_packet.reading);
-
-        // Clear space by deleting older packets
-        if (packet_queue.size == QUEUE_SIZE_MAX) {
-            packet_queue.pop();
-        }
-
-        packet_queue.push(new_packet);
-
-        if (PRINT_DEBUG) {
-            Serial.print("Packet created: ");
-            Serial.println(packet_number);
-            print_packet(new_packet);
+        for(int k = 0; k<random_dup; k++) {
+              Packet new_packet = {
+                .reading = {},
+                .age = 0,
+                .number = packet_number,
+                .origin_id = my_id,
+                .current_id = my_id,
+            };
+    
+            read_temperatures(new_packet.reading);
+    
+            // Clear space by deleting older packets
+            if (packet_queue.size == QUEUE_SIZE_MAX) {
+                packet_queue.pop();
+            }
+    
+            packet_queue.push(new_packet);
+    
+            if (PRINT_DEBUG) {
+                Serial.print("Packet created: ");
+                Serial.println(packet_number);
+                print_packet(new_packet);
+            }
+          
         }
 
         packet_number++;
