@@ -17,12 +17,12 @@ void initialize_children_array() {
  *  find the index of children if it exists in chilren array
  *  else put it in the array
  */
-int8_t find_child(uint8_t id) {
+int16_t find_child(uint8_t id) {
     bool found = false;
-    uint8_t child_index = -1;
+    int16_t child_index = -1;
 
     for(int i = 0; i < MAX_NUM_CHILDREN; i++) {
-        if(children[i] == id) {
+        if(children[i] == (int16_t) id) {
             found = true;
             child_index = i;
             break;
@@ -43,7 +43,7 @@ int8_t find_child(uint8_t id) {
  * checks whether a packet is a duplicate
  */
 bool is_duplicate(uint8_t packet_number, uint8_t id) {
-    uint8_t child_index = find_child(id);
+    int16_t child_index = find_child(id);
 
     // ran out of slots in array!
     // should never come here
@@ -51,10 +51,10 @@ bool is_duplicate(uint8_t packet_number, uint8_t id) {
         return false;
     }
 
-    if(last_received_packet[child_index] == packet_number) {
+    if(last_received_packet[child_index] == (int16_t)packet_number) {
         return true;
     } else {
-        last_received_packet[child_index] = packet_number;
+        last_received_packet[child_index] = (int16_t)packet_number;
         return false;
     }
 }
