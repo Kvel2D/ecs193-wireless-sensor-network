@@ -148,7 +148,7 @@ uint32_t correct_millis() {
 void blink_led_periodically() {
     static uint32_t prev_time = 0;
 
-    uint32_t current_time = millis();
+    uint32_t current_time = correct_millis();
     
     if (current_time - prev_time > LED_PERIOD) {
         prev_time = current_time;
@@ -213,14 +213,14 @@ void sleep(uint32_t sleep_time) {
     } else {
         // Other nodes sleep for real
         int sleep_time_left = (int)sleep_time;
-        uint32_t time_before = millis();
+        uint32_t time_before = correct_millis();
 
         while (sleep_time_left > 0) {
             sleep_time_left -= Watchdog.sleep(sleep_time_left);
         }
 
         // Record clock error
-        uint32_t perceived_sleep_time = millis() - time_before;
+        uint32_t perceived_sleep_time = correct_millis() - time_before;
         if (perceived_sleep_time < sleep_time) {
             millis_error += sleep_time - perceived_sleep_time;
         }
@@ -266,7 +266,7 @@ void loop_rx() {
     bool rx_success;
     do {
         rx_success = false;
-        uint32_t start_time = millis();
+        uint32_t start_time = correct_millis();
     
         // Turn on radio
         rf69.setModeRx();
@@ -278,7 +278,7 @@ void loop_rx() {
         }
     
         Packet p;
-        while (millis() - start_time < 10) {
+        while (correct_millis() - start_time < 10) {
             if (rf69_manager.available()) {
                 // Wait for a message addressed to us from the client
                 uint8_t len = sizeof(buffer);
@@ -363,7 +363,7 @@ void updatePacketAge(uint32_t time) {
 }
 
 void loop() {
-    uint32_t loop_start_time = millis();
+    uint32_t loop_start_time = correct_millis();
 
     // Do readings periodically if node has sensor
     if (my_data.has_sensor && (do_first_reading_packet || correct_millis() - last_reading_time >= PACKET_PERIOD)) {
@@ -420,5 +420,5 @@ void loop() {
     blink_led_periodically();
 
     // Update packet ages
-    updatePacketAge(millis() - loop_start_time);
+    updatePacketAge(correct_millis() - loop_start_time);
 }
