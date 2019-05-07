@@ -202,6 +202,11 @@ void print_packet(struct Packet p) {
 void sleep(uint32_t sleep_time) {
     static uint32_t time_slept = 0;
 
+    // Limit max sleep_time because it needs to be converted to int(int16)
+    if (sleep_time > (uint32_t) INT16_MAX) {
+        sleep_time = (uint32_t) INT16_MAX;
+    }
+
     if (time_slept < FAKE_SLEEP_DURATION) {
         time_slept += sleep_time;
     }
