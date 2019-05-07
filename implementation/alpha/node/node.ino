@@ -48,7 +48,7 @@ float current_frequency = 0.0f;
 uint32_t last_reading_time = 0;
 uint32_t last_healthPacket_time = 0;
 Queue packet_queue;
-static int8_t packet_number = 0;
+uint8_t packet_number = 0;
 bool do_first_health_packet = true;
 bool do_first_reading_packet = true;
 
@@ -332,7 +332,7 @@ void health_packet_generate() {
 }
 
 void increment_packet_age(uint32_t time) {
-    static uint16_t packet_queue_age_ms[NUM_SENSORS];
+    static uint16_t packet_queue_age_ms[QUEUE_SIZE_MAX];
 
     if (packet_queue.size > 0) {
         for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
