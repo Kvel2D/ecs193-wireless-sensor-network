@@ -332,17 +332,21 @@ void health_packet_generate() {
 }
 
 void increment_packet_age(uint32_t time) {
+    // NOTE: don't need to reset ms counter because inaccuracy of <1s doesn't matter
     static uint16_t packet_queue_age_ms[QUEUE_SIZE_MAX];
 
     if (packet_queue.size > 0) {
         for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
             packet_queue_age_ms[i] += (uint16_t) time;
-            
-            // NOTE: don't need to reset ms counter when adding packets because inaccuracy of <1s doesn't matter
-            if (packet_queue_age_ms[i] > 1000 && packet_queue.data[i].age < 65000) {
+
+            if (packet_queue_age_ms[i] > 1000) {
                 uint16_t d_seconds = packet_queue_age_ms[i] / 1000;
-                packet_queue.data[i].age += d_seconds;
                 packet_queue_age_ms[i] -= d_seconds * 1000;
+
+                // Don't overflow age
+                if (packet_queue.data[i].age < UINT16_MAX - d_seconds) {
+                    packet_queue.data[i].age += d_seconds;
+                }
             }
         }
     }
