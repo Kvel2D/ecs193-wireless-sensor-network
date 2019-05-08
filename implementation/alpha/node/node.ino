@@ -43,14 +43,21 @@ NodeData parent_data;
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, my_id);
-float current_frequency = 0.0f;
-
-uint32_t last_reading_time = 0;
-uint32_t last_healthPacket_time = 0;
 Queue packet_queue;
+float current_frequency = 0.0f;
+static uint32_t last_reading_time = 0;
+static uint32_t last_healthPacket_time = 0;
 static uint8_t packet_number = 0;
-bool do_first_health_packet = true;
-bool do_first_reading_packet = true;
+static bool do_first_health_packet = true;
+static bool do_first_reading_packet = true;
+typedef enum { Receive, Transmit } State;
+static State nextState = Transmit;
+static uint32_t next_transmit = 0;
+static uint32_t next_receive = 0;
+static uint32_t last_transmit = 0;
+static uint32_t last_receive = 0;
+static uint32_t current_tx_sleep = 0;
+static uint32_t current_rx_sleep = 0;
 
 void setup() {
   pinMode(LED_PIN, OUTPUT);
@@ -182,18 +189,11 @@ void print_packet(struct Packet p) {
 }
 
 void loop_tx() {
+  // Turn on radio
+  rf69.setModeIdle();
   bool tx_success = false;
-  uint32_t sleep_time = expovariate(TX_RATE);
-  sleep_time = convert_to_sleepydog_time(sleep_time);
-
-  rf69.sleep();
-  delay(sleep_time);
-
   do {
     tx_success = false;
-
-    // Turn on radio
-    rf69.setModeIdle();
 
     if (packet_queue.size > 0) {
       Packet packet = packet_queue.front();
@@ -213,23 +213,18 @@ void loop_tx() {
     }
   } while (tx_success && packet_queue.size > 0);
   // Chain tx's until a failed transmit or queue is empty
+  rf69.sleep();  // turn off radio
+  last_transmit = millis();
 }
 
 void loop_rx() {
+  // Turn on radio
+  rf69.setModeRx();
   static uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
-
-  uint32_t sleep_time = expovariate(RX_RATE);
-  sleep_time = convert_to_sleepydog_time(sleep_time);
-  delay(sleep_time);
-
   bool rx_success;
   do {
     rx_success = false;
     uint32_t start_time = millis();
-
-    // Turn on radio
-    rf69.setModeRx();
-
     // Clear buffer
     if (rf69_manager.available()) {
       uint8_t len = sizeof(buffer);
@@ -264,10 +259,6 @@ void loop_rx() {
         }
       }
     }
-
-    // Turn off radio
-    rf69.sleep();
-
     // Only last node prints to serial
     if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG)) {
       if (PRINT_DEBUG) {
@@ -277,6 +268,8 @@ void loop_rx() {
     }
   } while (rx_success && packet_queue.size < QUEUE_SIZE_MAX);
   // Chain rx's until a failed receive or queue is full
+  rf69.sleep();  // Turn off radio
+  last_receive = millis();
 }
 
 void health_packet_generate() {
@@ -348,16 +341,16 @@ void loop() {
   }
   // Set frequency
   float expected_frequency = 0.0f;
-  if (packet_queue.size > 0 && my_data.parent != NO_ID) {
+  if (nextState == Transmit && packet_queue.size > 0 &&
+      my_data.parent != NO_ID) {
     expected_frequency = parent_data.rx_frequency;
-  } else {
+  } else if (nextState == Receive && !my_data.has_sensor) {
     expected_frequency = my_data.rx_frequency;
   }
   if (current_frequency != expected_frequency) {
     rf69.setFrequency(expected_frequency);
     current_frequency = expected_frequency;
   }
-
   if (packet_queue.size > 0 && my_data.parent != NO_ID) {
     loop_tx();
   } else {
@@ -367,4 +360,22 @@ void loop() {
   blink_led_periodically();
   // Update packet ages
   updatePacketAge(millis() - loop_start_time);
+  // Unified sleep
+  if (millis() - last_transmit >= current_tx_sleep) {
+    current_tx_sleep = convert_to_sleepydog_time(expovariate(TX_RATE));
+    next_transmit = millis() + current_tx_sleep;
+  }
+
+  if (millis() - last_receive >= current_rx_sleep) {
+    current_rx_sleep = convert_to_sleepydog_time(expovariate(RX_RATE));
+    next_receive = millis() + current_rx_sleep;
+  }
+
+  if (!my_data.has_sensor && next_transmit > next_receive) {
+    nextState = Receive;
+    delay(next_receive - millis());
+  } else {
+    nextState = Transmit;
+    delay(next_transmit - millis());
+  }
 }
