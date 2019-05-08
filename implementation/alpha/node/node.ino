@@ -113,7 +113,10 @@ void setup() {
     rf69_manager.setRetries(0);
     rf69_manager.setTimeout(10);
 
-    last_reading_time = millis();
+    // generate on startup
+    if (do_first_health_packet) health_packet_generate();
+    if (do_first_reading_packet) data_packet_generate();
+    last_healthPacket_time = last_reading_time = millis();
 }
 
 int free_ram() {
@@ -275,38 +278,53 @@ void loop_rx() {
 }
 
 void health_packet_generate() {
-    if (do_first_health_packet || millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
-        do_first_health_packet = false;
-        
+    Packet new_packet = {
+        .reading = {(float)packet_queue.size,0.0f,0.0f,0.0f,0.0f,0.0f},
+        .age = 0,
+        .number = packet_number,
+        .origin_id = my_id,
+        .current_id = my_id,
+    };
+    if (my_data.parent == NO_ID) {
+        // this is gateway, so print something instead of push
+        print_packet(new_packet);
+    } else {
+        // Clear space by deleting older packets
+        if (packet_queue.size == QUEUE_SIZE_MAX) {
+            packet_queue.pop();
+        }
+        packet_queue.push(new_packet);
+    }
+    if (PRINT_DEBUG) {
+        Serial.print("Health_Packet created: ");
+        Serial.println(packet_number);
+        print_packet(new_packet);
+    }
+    packet_number++;
+    last_healthPacket_time = millis();
+}
+
+void data_packet_generate() {
         Packet new_packet = {
-            .reading = {(float)packet_queue.size,0.0f,0.0f,0.0f,0.0f,0.0f},
+            .reading = {},
             .age = 0,
             .number = packet_number,
             .origin_id = my_id,
             .current_id = my_id,
         };
-
-        if (my_data.parent == NO_ID) {
-            // this is gateway, so print something instead of push
-            print_packet(new_packet);
-        } else {
-            // Clear space by deleting older packets
-            if (packet_queue.size == QUEUE_SIZE_MAX) {
-                packet_queue.pop();
-            }
-
-            packet_queue.push(new_packet);
+        read_temperatures(new_packet.reading);
+        // Clear space by deleting older packets
+        if (packet_queue.size == QUEUE_SIZE_MAX) {
+            packet_queue.pop();
         }
-
+        packet_queue.push(new_packet);
         if (PRINT_DEBUG) {
-            Serial.print("Health_Packet created: ");
+            Serial.print("Packet created: ");
             Serial.println(packet_number);
             print_packet(new_packet);
         }
-
         packet_number++;
-        last_healthPacket_time = millis();
-    }
+        last_reading_time = millis();
 }
 
 void updatePacketAge(uint32_t time) {
@@ -319,41 +337,12 @@ void updatePacketAge(uint32_t time) {
 
 void loop() {
     uint32_t loop_start_time = millis();
-
     // Do readings periodically if node has sensor
-    if (my_data.has_sensor && (do_first_reading_packet || millis() - last_reading_time >= PACKET_PERIOD)) {
-        do_first_reading_packet = false;
-
-        Packet new_packet = {
-            .reading = {},
-            .age = 0,
-            .number = packet_number,
-            .origin_id = my_id,
-            .current_id = my_id,
-        };
-
-        read_temperatures(new_packet.reading);
-
-        // Clear space by deleting older packets
-        if (packet_queue.size == QUEUE_SIZE_MAX) {
-            packet_queue.pop();
-        }
-
-        packet_queue.push(new_packet);
-
-        if (PRINT_DEBUG) {
-            Serial.print("Packet created: ");
-            Serial.println(packet_number);
-            print_packet(new_packet);
-        }
-
-        packet_number++;
-
-        last_reading_time = millis();
-    } else if (my_id > 128) {
+    if (my_data.has_sensor && millis() - last_reading_time >= PACKET_PERIOD) {
+        data_packet_generate();
+    } else if (my_id > 128 && millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
         health_packet_generate();
     }
-
     // Set frequency
     float expected_frequency = 0.0f;
     if (packet_queue.size > 0 && my_data.parent != NO_ID) {
@@ -371,9 +360,8 @@ void loop() {
     } else {
         loop_rx();
     }
-
+    // For debug purposes
     blink_led_periodically();
-
     // Update packet ages
     updatePacketAge(millis() - loop_start_time);
 }
