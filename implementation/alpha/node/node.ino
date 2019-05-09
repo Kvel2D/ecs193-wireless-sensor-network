@@ -192,27 +192,26 @@ void loop_tx() {
   // Turn on radio
   rf69.setModeIdle();
   bool tx_success = false;
-  do {
-    tx_success = false;
+    do {
+        tx_success = false;
 
-    if (packet_queue.size > 0) {
-      Packet packet = packet_queue.front();
+        if (packet_queue.size > 0) {
+            Packet packet = packet_queue.front();
 
-      // Transmit
-      tx_success = rf69_manager.sendtoWait((uint8_t *)&packet, sizeof(Packet),
-                                           my_data.parent);
-    }
+            // Transmit
+            tx_success = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), my_data.parent);
+        }
 
-    if (tx_success) {
-      Packet popped = packet_queue.pop();
+        if (tx_success) {
+            Packet popped = packet_queue.pop();
 
-      if (PRINT_DEBUG) {
-        Serial.print("|TX,");
-        print_packet(popped);
-      }
-    }
-  } while (tx_success && packet_queue.size > 0);
-  // Chain tx's until a failed transmit or queue is empty
+            if (PRINT_DEBUG) {
+                Serial.print("|TX,");
+                print_packet(popped);
+            }
+        }
+    } while (tx_success && packet_queue.size > 0);
+    // Chain tx's until a failed transmit or queue is empty
   rf69.sleep();  // turn off radio
   last_transmit = millis();
 }
@@ -221,53 +220,51 @@ void loop_rx() {
   // Turn on radio
   rf69.setModeRx();
   static uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
-  bool rx_success;
-  do {
-    rx_success = false;
-    uint32_t start_time = millis();
-    // Clear buffer
-    if (rf69_manager.available()) {
-      uint8_t len = sizeof(buffer);
-      rf69.recv(buffer, &len);
-    }
+    bool rx_success;
+    do {
+        rx_success = false;
+        uint32_t start_time = millis();
 
-    Packet p;
-    while (millis() - start_time < 10) {
-      if (rf69_manager.available()) {
-        // Wait for a message addressed to us from the client
-        uint8_t len = sizeof(buffer);
-        uint8_t from;
-        if (rf69_manager.recvfromAck(buffer, &len, &from)) {
-          // Turn off radio
-          rf69.sleep();
-
-          // zero out remaining string
-          buffer[len] = 0;
-
-          memcpy(&p, buffer, sizeof(Packet));
-          rx_success = true;
-
-          p.current_id = my_id;
-
-          // NOTE: Last node doesn't put packets into queue, they are
-          // "transferred" to gateway when packet is printer
-          if (my_data.parent != NO_ID) {
-            packet_queue.push(p);
-          }
-
-          break;
+        // Clear buffer
+        if (rf69_manager.available()) {
+            uint8_t len = sizeof(buffer);
+            rf69.recv(buffer, &len);
         }
-      }
-    }
-    // Only last node prints to serial
-    if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG)) {
-      if (PRINT_DEBUG) {
-        Serial.print("|RX,");
-      }
-      print_packet(p);
-    }
-  } while (rx_success && packet_queue.size < QUEUE_SIZE_MAX);
-  // Chain rx's until a failed receive or queue is full
+    
+        Packet p;
+        while (millis() - start_time < 10) {
+            if (rf69_manager.available()) {
+                // Wait for a message addressed to us from the client
+                uint8_t len = sizeof(buffer);
+                uint8_t from;
+                if (rf69_manager.recvfromAck(buffer, &len, &from)) {
+                    // zero out remaining string
+                    buffer[len] = 0; 
+
+                    memcpy(&p, buffer, sizeof(Packet));
+                    rx_success = true;
+
+                    p.current_id = my_id;
+
+                    // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
+                    if (my_data.parent != NO_ID) {
+                        packet_queue.push(p);
+                    }
+
+                    break;
+                }
+            }
+        }
+        
+        // Only last node prints to serial
+        if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG)) {
+            if (PRINT_DEBUG) {
+                Serial.print("|RX,");
+            }
+            print_packet(p);
+        }
+    } while (rx_success && packet_queue.size < QUEUE_SIZE_MAX);
+    // Chain rx's until a failed receive or queue is full
   rf69.sleep();  // Turn off radio
   last_receive = millis();
 }
