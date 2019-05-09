@@ -1,22 +1,22 @@
-#include <EEPROM.h>
-#include <RHReliableDatagram.h>
-#include <RH_RF69.h>
 #include <SPI.h>
+#include <EEPROM.h>
+#include <RH_RF69.h>
+#include <RHReliableDatagram.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
+#include <stdio.h>
 
 #include "sensor.h"
 #include "tree_data.h"
 
 struct Packet {
-  float reading[NUM_SENSORS];
-  uint32_t age;
-  uint8_t number;
-  uint8_t origin_id;
-  uint8_t current_id;
+    float reading[NUM_SENSORS];
+    uint32_t age;
+    uint8_t number;
+    uint8_t origin_id;
+    uint8_t current_id;
 };
+
 #include "queue.h"
 
 // NOTE: uncomment whichever id method you use
