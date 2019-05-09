@@ -2,7 +2,7 @@ import simpy
 import random
 import math
 
-SIM_TIME = 1 * 60 * 60 * 1000
+SIM_TIME = 72 * 60 * 60 * 1000
 PACKET_PERIOD = 5 * 60 * 1000
 
 RX_RATE = 600
@@ -173,7 +173,7 @@ def simulate():
 
     file = open("results.txt", "a")
 
-    file.write("\n\nRX_RATE = %d, " % TX_RATE)
+    file.write("\n\nRX_RATE = %d, " % RX_RATE)
     file.write("TX_RATE = %d" % TX_RATE)
     file.write('\n')
     file.write('transmitted %d packets\n' % len(gateway_node.packet_queue))
