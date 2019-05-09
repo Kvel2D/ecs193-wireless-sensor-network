@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "sensor.h"
 #include "tree_data.h"
@@ -16,7 +17,6 @@ struct Packet {
   uint8_t origin_id;
   uint8_t current_id;
 };
-
 #include "queue.h"
 
 // NOTE: uncomment whichever id method you use
@@ -370,8 +370,7 @@ void loop() {
     current_rx_sleep = convert_to_sleepydog_time(expovariate(RX_RATE));
     next_receive = millis() + current_rx_sleep;
   }
-
-  if (!my_data.has_sensor && next_transmit > next_receive) {
+  if (!my_data.has_sensor && next_transmit - millis() > next_receive - millis()) {
     nextState = Receive;
     delay(next_receive - millis());
   } else {
