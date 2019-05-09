@@ -323,17 +323,18 @@ void data_packet_generate() {
 }
 
 void updatePacketAge(uint32_t time) {
-  if (packet_queue.size > 0) {
-    for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
-      packet_queue.data[i].age += time;
+    if (packet_queue.size > 0) {
+        for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
+            packet_queue.data[i].age += time;
+        }
     }
-  }
 }
 
 void loop() {
-  uint32_t loop_start_time = millis();
-  // Do readings periodically if node has sensor
-  if (my_data.has_sensor && millis() - last_reading_time >= PACKET_PERIOD) {
+    uint32_t loop_start_time = millis();
+
+    // Do readings periodically if node has sensor
+    if (my_data.has_sensor && (do_first_reading_packet || millis() - last_reading_time >= PACKET_PERIOD)) {
     data_packet_generate();
   } else if (my_id > 128 &&
              millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
