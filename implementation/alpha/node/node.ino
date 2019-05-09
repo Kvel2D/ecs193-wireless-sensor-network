@@ -181,7 +181,7 @@ void print_packet(struct Packet p) {
     // null-terminator
     // 1 more char for leeway
     static char print_packet_buffer[5 + 3 * 3 + 6 * 4 + 9 + 1 + 1];
-    int print_size = snprintf(print_packet_buffer, sizeof(print_packet_buffer), "%lu,%u,%u,%u,%d.%d,%d.%d,%d.%d,%d.%d,%d.%d,%d.%d", 
+    int print_size = snprintf(print_packet_buffer, sizeof(print_packet_buffer), "%u,%u,%u,%u,%d.%d,%d.%d,%d.%d,%d.%d,%d.%d,%d.%d", 
         p.age, 
         p.current_id, 
         p.number, 
