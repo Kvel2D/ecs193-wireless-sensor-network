@@ -9,11 +9,12 @@
 
 #include "sensor.h"
 #include "tree_data.h"
+#include "duplicate.h"
 
 struct Packet {
-    float reading[NUM_SENSORS];
-    uint32_t age;
-    uint16_t number;
+    uint16_t reading[NUM_SENSORS];
+    uint16_t age;
+    uint8_t number;
     uint8_t origin_id;
     uint8_t current_id;
 };
@@ -43,6 +44,7 @@ NodeData parent_data;
 #define RX_RATE                 (600.0f)
 #define TX_RATE                 (200.0f)
 
+
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, my_id);
 float current_frequency = 0.0f;
@@ -50,9 +52,11 @@ float current_frequency = 0.0f;
 uint32_t last_reading_time = 0;
 uint32_t last_healthPacket_time = 0;
 Queue packet_queue;
-static int16_t packet_number = 0;
+uint8_t packet_number = 0;
 bool do_first_health_packet = true;
 bool do_first_reading_packet = true;
+
+
 
 void setup() {  
     pinMode(LED_PIN, OUTPUT);
@@ -75,6 +79,8 @@ void setup() {
     if (my_data.has_sensor) {
         setup_sensors();
     }
+
+    initialize_children_array();
 
     pinMode(2, OUTPUT); // set up for the sensor voltage
     pinMode(RFM69_RST, OUTPUT);
@@ -145,6 +151,26 @@ uint32_t correct_millis() {
     return millis() + millis_error;
 }
 
+uint16_t compress_float(float f) {
+    // NOTE: 0.0f is reserved for N/A value of -127.0f when no sensor is connected or sensor is faulty
+    if (f == -127.0f) {
+        f = 0.0f;
+    } else {
+        // Limit to 0.1f-99.0f range
+        if (f < 0.1f) {
+            f = 0.1f;
+        } else if (f > 99.0f) {
+            f = 99.0f;
+        }
+    }
+
+    return (uint16_t) round(f / 99.0f * UINT16_MAX);
+}
+
+float decompress_float(uint16_t f) {
+    return f * 99.0f / UINT16_MAX;
+}
+
 void blink_led_periodically() {
     static uint32_t prev_time = 0;
 
@@ -158,39 +184,27 @@ void blink_led_periodically() {
     }
 }
 
-void print_packet(struct Packet p) {
-    // NOTE: old printing with multiple prints, remove when sure that it's not needed
-    // Serial.print(p.age);
-    // Serial.print(",");
-    // Serial.print(p.current_id);
-    // Serial.print(",");
-    // Serial.print(p.number);
-    // Serial.print(",");
-    // Serial.print(p.origin_id);
-    // for (int i = 0; i < NUM_SENSORS; i++) {
-    //     Serial.print(",");
-    //     Serial.print(p.reading[i]);
-    // }
-    // NOTE: to print a float do: ("%d%01d", (int)(f), (int)(f * 100) % 100)
+#define print_float(x) (int) x, ((int) round(x * 10.0f)) % 10
 
-    // 1 uint32 (10 chars)
-    // 3 uint16 (5 chars)
-    // 6 floats (formatted as -123.45, so 7 chars)
+void print_packet(struct Packet p) {
+    // 1 uint16 (5 chars)
+    // 3 uint8 (3 chars)
+    // 6 floats (formatted as 12.3, so 4 chars)
     // 9 commas
     // null-terminator
     // 1 more char for leeway
-    static char print_packet_buffer[10 + 3 * 5 + 6 * 6 + 9 + 1 + 1];
-    int print_size = snprintf(print_packet_buffer, sizeof(print_packet_buffer), "%lu,%u,%u,%u,%d.%01d,%d.%01d,%d.%01d,%d.%01d,%d.%01d,%d.%01d", 
+    static char print_packet_buffer[5 + 3 * 3 + 6 * 4 + 9 + 1 + 1];
+    int print_size = snprintf(print_packet_buffer, sizeof(print_packet_buffer), "%u,%u,%u,%u,%d.%d,%d.%d,%d.%d,%d.%d,%d.%d,%d.%d", 
         p.age, 
         p.current_id, 
         p.number, 
         p.origin_id, 
-        (int)(p.reading[0]), (int)(p.reading[0] * 100) % 100 / 10, 
-        (int)(p.reading[1]), (int)(p.reading[1] * 100) % 100 / 10, 
-        (int)(p.reading[2]), (int)(p.reading[2] * 100) % 100 / 10, 
-        (int)(p.reading[3]), (int)(p.reading[3] * 100) % 100 / 10, 
-        (int)(p.reading[4]), (int)(p.reading[4] * 100) % 100 / 10,
-        (int)(p.reading[5]), (int)(p.reading[5] * 100) % 100 / 10);
+        print_float(decompress_float(p.reading[0])),
+        print_float(decompress_float(p.reading[1])),
+        print_float(decompress_float(p.reading[2])),
+        print_float(decompress_float(p.reading[3])),
+        print_float(decompress_float(p.reading[4])),
+        print_float(decompress_float(p.reading[5])));
 
     Serial.println(print_packet_buffer);
 
@@ -271,6 +285,7 @@ void loop_rx() {
     bool rx_success;
     do {
         rx_success = false;
+
         uint32_t start_time = correct_millis();
     
         // Turn on radio
@@ -281,8 +296,10 @@ void loop_rx() {
             uint8_t len = sizeof(buffer);
             rf69.recv(buffer, &len);
         }
-    
+
         Packet p;
+
+        bool duplicate = false;
         while (correct_millis() - start_time < 10) {
             if (rf69_manager.available()) {
                 // Wait for a message addressed to us from the client
@@ -298,11 +315,16 @@ void loop_rx() {
                     memcpy(&p, buffer, sizeof(Packet));
                     rx_success = true;
 
-                    p.current_id = my_id;
-
                     // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
-                    if (my_data.parent != NO_ID) {
+                    duplicate = is_duplicate(p.number, p.current_id);
+                    if (my_data.parent != NO_ID && !duplicate) {
+                        p.current_id = my_id;
                         packet_queue.push(p);
+                    } 
+
+                    if(duplicate && PRINT_DEBUG) {
+                      Serial.print("duplicate: ");
+                      Serial.println(p.number);
                     }
 
                     break;
@@ -314,7 +336,7 @@ void loop_rx() {
         rf69.sleep();
         
         // Only last node prints to serial
-        if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG)) {
+        if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG) && (!duplicate)) {
             if (PRINT_DEBUG) {
                 Serial.print("|RX,");
             }
@@ -329,7 +351,7 @@ void health_packet_generate() {
         do_first_health_packet = false;
         
         Packet new_packet = {
-            .reading = {(float)packet_queue.size,0.0f,0.0f,0.0f,0.0f,0.0f},
+            .reading = {compress_float((float)packet_queue.size), 0, 0, 0, 0, 0},
             .age = 0,
             .number = packet_number,
             .origin_id = my_id,
@@ -359,10 +381,23 @@ void health_packet_generate() {
     }
 }
 
-void updatePacketAge(uint32_t time) {
+void increment_packet_age(uint32_t time) {
+    // NOTE: don't need to reset ms counter because inaccuracy of <1s doesn't matter
+    static uint16_t packet_queue_age_ms[QUEUE_SIZE_MAX];
+
     if (packet_queue.size > 0) {
         for (size_t i = 0; i < QUEUE_SIZE_MAX; i++) {
-            packet_queue.data[i].age += time;
+            packet_queue_age_ms[i] += (uint16_t) time;
+
+            if (packet_queue_age_ms[i] > 1000) {
+                uint16_t d_seconds = packet_queue_age_ms[i] / 1000;
+                packet_queue_age_ms[i] -= d_seconds * 1000;
+
+                // Don't overflow age
+                if (packet_queue.data[i].age < UINT16_MAX - d_seconds) {
+                    packet_queue.data[i].age += d_seconds;
+                }
+            }
         }
     }
 }
@@ -374,6 +409,8 @@ void loop() {
     if (my_data.has_sensor && (do_first_reading_packet || correct_millis() - last_reading_time >= PACKET_PERIOD)) {
         do_first_reading_packet = false;
 
+
+
         Packet new_packet = {
             .reading = {},
             .age = 0,
@@ -382,7 +419,12 @@ void loop() {
             .current_id = my_id,
         };
 
-        read_temperatures(new_packet.reading);
+        float reading_f[NUM_SENSORS];
+        read_temperatures(reading_f);
+
+        for (int i = 0; i < NUM_SENSORS; i++) {
+            new_packet.reading[i] = compress_float(reading_f[i]);
+        }
 
         // Clear space by deleting older packets
         if (packet_queue.size == QUEUE_SIZE_MAX) {
@@ -396,7 +438,8 @@ void loop() {
             Serial.println(packet_number);
             print_packet(new_packet);
         }
-
+          
+        
         packet_number++;
 
         last_reading_time = correct_millis();
@@ -425,5 +468,5 @@ void loop() {
     blink_led_periodically();
 
     // Update packet ages
-    updatePacketAge(correct_millis() - loop_start_time);
+    increment_packet_age(correct_millis() - loop_start_time);
 }
