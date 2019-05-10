@@ -37,10 +37,10 @@ NodeData parent_data;
 #define LED_PIN         13
 #define LED_PERIOD      (60ul * 1000ul)
 
-#define PACKET_PERIOD   (1000ul * 30ul)
-#define HEALTH_PACKET_PERIOD  (1000ul * 60ul * 60ul)
-#define RX_RATE      (600.0f)
-#define TX_RATE      (200.0f)
+#define PACKET_PERIOD           (5ul * 60ul * 1000ul)
+#define HEALTH_PACKET_PERIOD    (60ul * 60ul * 1000ul)
+#define RX_RATE                 (600.0f)
+#define TX_RATE                 (200.0f)
 
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);

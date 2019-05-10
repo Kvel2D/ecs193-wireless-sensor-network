@@ -1,5 +1,6 @@
 
 #define NO_ID     255
+#define NO_FREQ     430.00f
 
 struct NodeData {
     float rx_frequency;
@@ -220,13 +221,13 @@ const PROGMEM NodeData tree_data[] = {
     },
 // 35
     {
-        .rx_frequency = 433.00f,
+        .rx_frequency = NO_FREQ,
         .parent = 129,
         .has_sensor = true,
     },
 // 36
     {
-        .rx_frequency = 432.00f,
+        .rx_frequency = NO_FREQ,
         .parent = 129,
         .has_sensor = true,
     },
@@ -424,9 +425,9 @@ const PROGMEM NodeData tree_data[] = {
     },
 // 69
     {
-        .rx_frequency = 400.00f,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .rx_frequency = NO_FREQ,
+        .parent = 254,
+        .has_sensor = true,
     },
 // 70
     {
@@ -784,21 +785,21 @@ const PROGMEM NodeData tree_data[] = {
     },
 // 129
     {
-        .rx_frequency = 433.25f,
+        .rx_frequency = 433.00f,
         .parent = 254,
         .has_sensor = false,
     },
 // 130
     {
-        .rx_frequency = 431.00f,
+        .rx_frequency = NO_FREQ,
         .parent = 254,
         .has_sensor = true,
     },
 // 131
     {
-        .rx_frequency = 400.00f,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .rx_frequency = NO_FREQ,
+        .parent = 254,
+        .has_sensor = true,
     },
 // 132
     {
@@ -1534,7 +1535,7 @@ const PROGMEM NodeData tree_data[] = {
     },
 // 254
     {
-        .rx_frequency = 433.50f,
+        .rx_frequency = 433.25f,
         .parent = NO_ID,
         .has_sensor = false,
     },
