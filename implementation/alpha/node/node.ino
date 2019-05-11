@@ -45,19 +45,22 @@ RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, my_id);
 Queue packet_queue;
 float current_frequency = 0.0f;
+static uint8_t packet_number = 0;
+typedef enum { Start, Receive, Transmit, Reading, HealthPacket } State;
+static State current_state = Start;
 static uint32_t last_reading_time = 0;
 static uint32_t last_healthPacket_time = 0;
-static uint8_t packet_number = 0;
-static bool do_first_health_packet = true;
-static bool do_first_reading_packet = true;
-typedef enum { Receive, Transmit } State;
-static State nextState = Transmit;
-static uint32_t next_transmit = 0;
-static uint32_t next_receive = 0;
 static uint32_t last_transmit = 0;
 static uint32_t last_receive = 0;
+static uint32_t next_reading = 0;
+static uint32_t next_health = 0;
+static uint32_t next_transmit = 0;
+static uint32_t next_receive = 0;
 static uint32_t current_tx_sleep = 0;
 static uint32_t current_rx_sleep = 0;
+
+float expovariate(float rate);
+uint32_t convert_to_sleepydog_time(uint32_t time);
 
 void setup() {  
     pinMode(LED_PIN, OUTPUT);
@@ -120,10 +123,19 @@ void setup() {
     rf69_manager.setRetries(0);
     rf69_manager.setTimeout(10);
 
-  // generate on startup
-  if (do_first_health_packet) health_packet_generate();
-  if (do_first_reading_packet) data_packet_generate();
-  last_healthPacket_time = last_reading_time = millis();
+  // generate health or reading packet on startup
+  if (!my_data.has_sensor) {
+    current_state = HealthPacket;
+    last_healthPacket_time = millis();
+    current_rx_sleep = convert_to_sleepydog_time(expovariate(RX_RATE));
+    next_receive = millis() + current_rx_sleep;
+  } else {
+    current_state = Reading;
+    last_reading_time = millis();
+  }
+  // Both relay and sensor nodes will need a tx sleep
+  current_tx_sleep = convert_to_sleepydog_time(expovariate(TX_RATE));
+  next_transmit = millis() + current_tx_sleep;
 }
 
 int free_ram() {
@@ -189,6 +201,12 @@ void print_packet(struct Packet p) {
 }
 
 void loop_tx() {
+  // Set frequency
+  expected_frequency = my_data.rx_frequency;
+  if (current_frequency != expected_frequency) {
+    rf69.setFrequency(expected_frequency);
+    current_frequency = expected_frequency;
+  }
   // Turn on radio
   rf69.setModeIdle();
   bool tx_success = false;
@@ -217,6 +235,12 @@ void loop_tx() {
 }
 
 void loop_rx() {
+  // Set frequency
+  expected_frequency = parent_data.rx_frequency;
+  if (current_frequency != expected_frequency) {
+    rf69.setFrequency(expected_frequency);
+    current_frequency = expected_frequency;
+  }
   // Turn on radio
   rf69.setModeRx();
   static uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
@@ -329,50 +353,69 @@ void updatePacketAge(uint32_t time) {
 
 void loop() {
     uint32_t loop_start_time = millis();
-
-    // Do readings periodically if node has sensor
-    if (my_data.has_sensor && (do_first_reading_packet || millis() - last_reading_time >= PACKET_PERIOD)) {
-    data_packet_generate();
-  } else if (my_id > 128 &&
-             millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
-    health_packet_generate();
-  }
-  // Set frequency
-  float expected_frequency = 0.0f;
-  if (nextState == Transmit && packet_queue.size > 0 &&
-      my_data.parent != NO_ID) {
-    expected_frequency = parent_data.rx_frequency;
-  } else if (nextState == Receive && !my_data.has_sensor) {
-    expected_frequency = my_data.rx_frequency;
-  }
-  if (current_frequency != expected_frequency) {
-    rf69.setFrequency(expected_frequency);
-    current_frequency = expected_frequency;
-  }
-  if (packet_queue.size > 0 && my_data.parent != NO_ID) {
-    loop_tx();
-  } else {
-    loop_rx();
-  }
+    switch (current_state) {
+      case Reading:
+      data_packet_generate();
+      break;
+      case HealthPacket:
+      health_packet_generate();
+      break;
+      case Transmit:
+      loop_tx();
+      break;
+      case Receive:
+      loop_rx();
+      break;
+    }
   // For debug purposes
   blink_led_periodically();
   // Update packet ages
   updatePacketAge(millis() - loop_start_time);
   // Unified sleep
-  if (millis() - last_transmit >= current_tx_sleep) {
+  // Generate new transmit time if packet_queue is not empty and we just transmitted
+  if (packet_queue.size > 0 && current_state == Transmit) {
     current_tx_sleep = convert_to_sleepydog_time(expovariate(TX_RATE));
     next_transmit = millis() + current_tx_sleep;
   }
-
-  if (millis() - last_receive >= current_rx_sleep) {
+  // Generate new receive time if there's no sensors (isRelay)
+  if (!my_data.has_sensor && current_state == Receive) {
     current_rx_sleep = convert_to_sleepydog_time(expovariate(RX_RATE));
     next_receive = millis() + current_rx_sleep;
   }
-  if (!my_data.has_sensor && next_transmit - millis() > next_receive - millis()) {
-    nextState = Receive;
-    delay(next_receive - millis());
-  } else {
-    nextState = Transmit;
-    delay(next_transmit - millis());
+  // Generate new reading generation time if there are sensors and we just generated a data packet
+  if (my_data.has_sensor && current_state == Reading) {
+    next_reading = millis() + PACKET_PERIOD;
   }
+  // Generate new health packet generation time if is relay and we just generated a health packet
+  if (!my_data.has_sensor && current_state == HealthPacket) {
+    next_health = millis() + HEALTH_PACKET_PERIOD;
+  }
+  State next_state;
+  uint32_t next_time;
+  if (my_data.has_sensor) {
+    // transmit, or generate data
+    if (next_transmit - millis() < next_reading - millis()) {
+      next_time = next_transmit;
+      next_state = Transmit;
+    } else {
+      next_time = next_reading;
+      next_state = Reading;
+    }
+  } else {
+    // transmit, receive, or generate health
+    if (next_transmit - millis() < next_receive - millis()) {
+      next_time = next_transmit;
+      next_state = Transmit;
+    } else {
+      next_time = next_receive;
+      next_state = Receive;
+    }
+
+    if (next_health - millis() < next_time - millis()) {
+      next_time = next_health;
+      next_state = HealthPacket;
+    }
+  }
+  delay(next_time - millis());
+  current_state = next_state;
 }
