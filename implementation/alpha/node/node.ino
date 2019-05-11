@@ -48,10 +48,6 @@ float current_frequency = 0.0f;
 static uint8_t packet_number = 0;
 typedef enum { Start, Receive, Transmit, Reading, HealthPacket } State;
 static State current_state = Start;
-static uint32_t last_reading_time = 0;
-static uint32_t last_healthPacket_time = 0;
-static uint32_t last_transmit = 0;
-static uint32_t last_receive = 0;
 static uint32_t next_reading = 0;
 static uint32_t next_health = 0;
 static uint32_t next_transmit = 0;
@@ -126,12 +122,10 @@ void setup() {
   // generate health or reading packet on startup
   if (!my_data.has_sensor) {
     current_state = HealthPacket;
-    last_healthPacket_time = millis();
     current_rx_sleep = convert_to_sleepydog_time(expovariate(RX_RATE));
     next_receive = millis() + current_rx_sleep;
   } else {
     current_state = Reading;
-    last_reading_time = millis();
   }
   // Both relay and sensor nodes will need a tx sleep
   current_tx_sleep = convert_to_sleepydog_time(expovariate(TX_RATE));
@@ -202,7 +196,7 @@ void print_packet(struct Packet p) {
 
 void loop_tx() {
   // Set frequency
-  expected_frequency = my_data.rx_frequency;
+  float expected_frequency = my_data.rx_frequency;
   if (current_frequency != expected_frequency) {
     rf69.setFrequency(expected_frequency);
     current_frequency = expected_frequency;
@@ -231,12 +225,11 @@ void loop_tx() {
     } while (tx_success && packet_queue.size > 0);
     // Chain tx's until a failed transmit or queue is empty
   rf69.sleep();  // turn off radio
-  last_transmit = millis();
 }
 
 void loop_rx() {
   // Set frequency
-  expected_frequency = parent_data.rx_frequency;
+  float expected_frequency = parent_data.rx_frequency;
   if (current_frequency != expected_frequency) {
     rf69.setFrequency(expected_frequency);
     current_frequency = expected_frequency;
@@ -290,7 +283,6 @@ void loop_rx() {
     } while (rx_success && packet_queue.size < QUEUE_SIZE_MAX);
     // Chain rx's until a failed receive or queue is full
   rf69.sleep();  // Turn off radio
-  last_receive = millis();
 }
 
 void health_packet_generate() {
@@ -317,7 +309,6 @@ void health_packet_generate() {
     print_packet(new_packet);
   }
   packet_number++;
-  last_healthPacket_time = millis();
 }
 
 void data_packet_generate() {
@@ -340,7 +331,6 @@ void data_packet_generate() {
     print_packet(new_packet);
   }
   packet_number++;
-  last_reading_time = millis();
 }
 
 void updatePacketAge(uint32_t time) {
