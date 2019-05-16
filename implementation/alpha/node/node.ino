@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <Adafruit_SleepyDog.h>
 
 #include "sensor.h"
 #include "tree_data.h"
@@ -36,6 +37,7 @@ NodeData parent_data;
 #define RFM69_RST       4
 #define LED_PIN         13
 #define LED_PERIOD      (60ul * 1000ul)
+#define FAKE_SLEEP_DURATION     (60ul * 1000ul)
 
 #define PACKET_PERIOD           (5ul * 60ul * 1000ul)
 #define HEALTH_PACKET_PERIOD    (60ul * 60ul * 1000ul)
@@ -119,7 +121,7 @@ void setup() {
     rf69_manager.setRetries(0);
     rf69_manager.setTimeout(10);
 
-    last_reading_time = millis();
+    last_reading_time = correct_millis();
 }
 
 int free_ram() {
@@ -142,6 +144,11 @@ uint32_t convert_to_sleepydog_time(uint32_t time) {
         sleepydog_time = 15;
     }
     return sleepydog_time;
+}
+
+uint32_t millis_error = 0;
+uint32_t correct_millis() {
+    return millis() + millis_error;
 }
 
 uint16_t compress_float(float f) {
@@ -167,7 +174,7 @@ float decompress_float(uint16_t f) {
 void blink_led_periodically() {
     static uint32_t prev_time = 0;
 
-    uint32_t current_time = millis();
+    uint32_t current_time = correct_millis();
     
     if (current_time - prev_time > LED_PERIOD) {
         prev_time = current_time;
@@ -206,13 +213,43 @@ void print_packet(struct Packet p) {
     }
 }
 
+void sleep(uint32_t sleep_time) {
+    static uint32_t time_slept = 0;
+
+    // Limit max sleep_time because it needs to be converted to int(int16)
+    if (sleep_time > (uint32_t) INT16_MAX) {
+        sleep_time = (uint32_t) INT16_MAX;
+    }
+
+    if (time_slept < FAKE_SLEEP_DURATION) {
+        time_slept += sleep_time;
+    }
+
+    // NOTE: Don't sleep for real at the start so that serial doesn't disconnect and board can be reflashed easily
+    if (my_data.parent == NO_ID || time_slept < FAKE_SLEEP_DURATION) {
+        // Gateway node doesn't sleep to prevent serial disconnect
+        delay(sleep_time);
+    } else {
+        // Other nodes sleep for real
+        int sleep_time_left = (int)sleep_time;
+        uint32_t time_before = correct_millis();
+
+        while (sleep_time_left > 0) {
+            sleep_time_left -= Watchdog.sleep(sleep_time_left);
+        }
+
+        // Record clock error
+        uint32_t perceived_sleep_time = correct_millis() - time_before;
+        if (perceived_sleep_time < sleep_time) {
+            millis_error += sleep_time - perceived_sleep_time;
+        }
+    }
+}
+
 void loop_tx() {
     bool tx_success = false;
     uint32_t sleep_time = expovariate(TX_RATE);
-    sleep_time = convert_to_sleepydog_time(sleep_time);
-
-    rf69.sleep();
-    delay(sleep_time);
+    sleep(sleep_time);
 
     do {
         tx_success = false;
@@ -243,14 +280,14 @@ void loop_rx() {
     static uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
 
     uint32_t sleep_time = expovariate(RX_RATE);
-    sleep_time = convert_to_sleepydog_time(sleep_time);
-    delay(sleep_time);
+    sleep(sleep_time);
 
     bool rx_success;
     do {
         rx_success = false;
-        uint32_t start_time = millis();
 
+        uint32_t start_time = correct_millis();
+    
         // Turn on radio
         rf69.setModeRx();
 
@@ -261,8 +298,9 @@ void loop_rx() {
         }
 
         Packet p;
+
         bool duplicate = false;
-        while (millis() - start_time < 10) {
+        while (correct_millis() - start_time < 10) {
             if (rf69_manager.available()) {
                 // Wait for a message addressed to us from the client
                 uint8_t len = sizeof(buffer);
@@ -309,7 +347,7 @@ void loop_rx() {
 }
 
 void health_packet_generate() {
-    if (do_first_health_packet || millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
+    if (do_first_health_packet || correct_millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
         do_first_health_packet = false;
         
         Packet new_packet = {
@@ -339,7 +377,7 @@ void health_packet_generate() {
         }
 
         packet_number++;
-        last_healthPacket_time = millis();
+        last_healthPacket_time = correct_millis();
     }
 }
 
@@ -365,10 +403,10 @@ void increment_packet_age(uint32_t time) {
 }
 
 void loop() {
-    uint32_t loop_start_time = millis();
+    uint32_t loop_start_time = correct_millis();
 
     // Do readings periodically if node has sensor
-    if (my_data.has_sensor && (do_first_reading_packet || millis() - last_reading_time >= PACKET_PERIOD)) {
+    if (my_data.has_sensor && (do_first_reading_packet || correct_millis() - last_reading_time >= PACKET_PERIOD)) {
         do_first_reading_packet = false;
 
 
@@ -404,7 +442,7 @@ void loop() {
         
         packet_number++;
 
-        last_reading_time = millis();
+        last_reading_time = correct_millis();
     } else if (my_id > 128) {
         health_packet_generate();
     }
@@ -430,5 +468,5 @@ void loop() {
     blink_led_periodically();
 
     // Update packet ages
-    increment_packet_age(millis() - loop_start_time);
+    increment_packet_age(correct_millis() - loop_start_time);
 }
