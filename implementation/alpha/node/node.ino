@@ -39,8 +39,8 @@ NodeData parent_data;
 #define LED_PERIOD      (60ul * 1000ul)
 #define FAKE_SLEEP_DURATION     (60ul * 1000ul)
 
-#define PACKET_PERIOD           (1000ul * 60ul * 5ul)
-#define HEALTH_PACKET_PERIOD    (1000ul * 60ul * 60ul)
+#define PACKET_PERIOD           (5ul * 60ul * 1000ul)
+#define HEALTH_PACKET_PERIOD    (60ul * 60ul * 1000ul)
 #define RX_RATE                 (600.0f)
 #define TX_RATE                 (200.0f)
 
