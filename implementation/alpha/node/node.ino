@@ -54,6 +54,7 @@ static uint32_t next_transmit = 0;
 static uint32_t next_receive = 0;
 static uint32_t current_tx_sleep = 0;
 static uint32_t current_rx_sleep = 0;
+static bool transmit_valid = false; // need this boolean to tell when to generate a new tx time
 
 float expovariate(float rate);
 uint32_t convert_to_sleepydog_time(uint32_t time);
@@ -119,17 +120,18 @@ void setup() {
     rf69_manager.setRetries(0);
     rf69_manager.setTimeout(10);
 
-  // generate health or reading packet on startup
-  if (!my_data.has_sensor) {
-    current_state = HealthPacket;
-    current_rx_sleep = convert_to_sleepydog_time(expovariate(RX_RATE));
-    next_receive = millis() + current_rx_sleep;
-  } else {
-    current_state = Reading;
-  }
-  // Both relay and sensor nodes will need a tx sleep
-  current_tx_sleep = convert_to_sleepydog_time(expovariate(TX_RATE));
-  next_transmit = millis() + current_tx_sleep;
+    // generate health or reading packet on startup
+    if (!my_data.has_sensor) {
+        current_state = HealthPacket;
+        current_rx_sleep = convert_to_sleepydog_time(expovariate(RX_RATE));
+        next_receive = millis() + current_rx_sleep;
+    } else {
+        current_state = Reading;
+    }
+    // Both relay and sensor nodes will need a tx sleep
+    current_tx_sleep = convert_to_sleepydog_time(expovariate(TX_RATE));
+    next_transmit = millis() + current_tx_sleep;
+    transmit_valid = true;
 }
 
 int free_ram() {
@@ -195,15 +197,15 @@ void print_packet(struct Packet p) {
 }
 
 void loop_tx() {
-  // Set frequency
-  float expected_frequency = my_data.rx_frequency;
-  if (current_frequency != expected_frequency) {
-    rf69.setFrequency(expected_frequency);
-    current_frequency = expected_frequency;
-  }
-  // Turn on radio
-  rf69.setModeIdle();
-  bool tx_success = false;
+    // Set frequency
+    float expected_frequency = my_data.rx_frequency;
+    if (current_frequency != expected_frequency) {
+        rf69.setFrequency(expected_frequency);
+        current_frequency = expected_frequency;
+    }
+    // Turn on radio
+    rf69.setModeIdle();
+    bool tx_success = false;
     do {
         tx_success = false;
 
@@ -224,19 +226,19 @@ void loop_tx() {
         }
     } while (tx_success && packet_queue.size > 0);
     // Chain tx's until a failed transmit or queue is empty
-  rf69.sleep();  // turn off radio
+    rf69.sleep();  // turn off radio
 }
 
 void loop_rx() {
-  // Set frequency
-  float expected_frequency = parent_data.rx_frequency;
-  if (current_frequency != expected_frequency) {
-    rf69.setFrequency(expected_frequency);
-    current_frequency = expected_frequency;
-  }
-  // Turn on radio
-  rf69.setModeRx();
-  static uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
+    // Set frequency
+    float expected_frequency = parent_data.rx_frequency;
+    if (current_frequency != expected_frequency) {
+        rf69.setFrequency(expected_frequency);
+        current_frequency = expected_frequency;
+    }
+    // Turn on radio
+    rf69.setModeRx();
+    static uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
     bool rx_success;
     do {
         rx_success = false;
@@ -282,55 +284,55 @@ void loop_rx() {
         }
     } while (rx_success && packet_queue.size < QUEUE_SIZE_MAX);
     // Chain rx's until a failed receive or queue is full
-  rf69.sleep();  // Turn off radio
+    rf69.sleep();  // Turn off radio
 }
 
 void health_packet_generate() {
-  Packet new_packet = {
-      .reading = {(float)packet_queue.size, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-      .age = 0,
-      .number = packet_number,
-      .origin_id = my_id,
-      .current_id = my_id,
-  };
-  if (my_data.parent == NO_ID) {
-    // this is gateway, so print something instead of push
-    print_packet(new_packet);
-  } else {
-    // Clear space by deleting older packets
-    if (packet_queue.size == QUEUE_SIZE_MAX) {
-      packet_queue.pop();
+    Packet new_packet = {
+        .reading = {(float)packet_queue.size, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
+        .age = 0,
+        .number = packet_number,
+        .origin_id = my_id,
+        .current_id = my_id,
+    };
+    if (my_data.parent == NO_ID) {
+        // this is gateway, so print something instead of push
+        print_packet(new_packet);
+    } else {
+        // Clear space by deleting older packets
+        if (packet_queue.size == QUEUE_SIZE_MAX) {
+            packet_queue.pop();
+        }
+        packet_queue.push(new_packet);
     }
-    packet_queue.push(new_packet);
-  }
-  if (PRINT_DEBUG) {
-    Serial.print("Health_Packet created: ");
-    Serial.println(packet_number);
-    print_packet(new_packet);
-  }
-  packet_number++;
+    if (PRINT_DEBUG) {
+        Serial.print("Health_Packet created: ");
+        Serial.println(packet_number);
+        print_packet(new_packet);
+    }
+    packet_number++;
 }
 
 void data_packet_generate() {
-  Packet new_packet = {
-      .reading = {},
-      .age = 0,
-      .number = packet_number,
-      .origin_id = my_id,
-      .current_id = my_id,
-  };
-  read_temperatures(new_packet.reading);
-  // Clear space by deleting older packets
-  if (packet_queue.size == QUEUE_SIZE_MAX) {
-    packet_queue.pop();
-  }
-  packet_queue.push(new_packet);
-  if (PRINT_DEBUG) {
-    Serial.print("Packet created: ");
-    Serial.println(packet_number);
-    print_packet(new_packet);
-  }
-  packet_number++;
+    Packet new_packet = {
+        .reading = {},
+        .age = 0,
+        .number = packet_number,
+        .origin_id = my_id,
+        .current_id = my_id,
+    };
+    read_temperatures(new_packet.reading);
+    // Clear space by deleting older packets
+    if (packet_queue.size == QUEUE_SIZE_MAX) {
+        packet_queue.pop();
+    }
+    packet_queue.push(new_packet);
+    if (PRINT_DEBUG) {
+        Serial.print("Packet created: ");
+        Serial.println(packet_number);
+        print_packet(new_packet);
+    }
+    packet_number++;
 }
 
 void updatePacketAge(uint32_t time) {
@@ -344,68 +346,84 @@ void updatePacketAge(uint32_t time) {
 void loop() {
     uint32_t loop_start_time = millis();
     switch (current_state) {
-      case Reading:
-      data_packet_generate();
-      break;
-      case HealthPacket:
-      health_packet_generate();
-      break;
-      case Transmit:
-      loop_tx();
-      break;
-      case Receive:
-      loop_rx();
-      break;
+        case Reading:
+            data_packet_generate();
+            break;
+        case HealthPacket:
+            health_packet_generate();
+            break;
+        case Transmit:
+            loop_tx();
+            transmit_valid = false;  // need to generate new tx time
+            break;
+        case Receive:
+            loop_rx();
+            break;
     }
-  // For debug purposes
-  blink_led_periodically();
-  // Update packet ages
-  updatePacketAge(millis() - loop_start_time);
-  // Unified sleep
-  // Generate new transmit time if packet_queue is not empty and we just transmitted
-  if (packet_queue.size > 0 && current_state == Transmit) {
-    current_tx_sleep = convert_to_sleepydog_time(expovariate(TX_RATE));
-    next_transmit = millis() + current_tx_sleep;
-  }
-  // Generate new receive time if there's no sensors (isRelay)
-  if (!my_data.has_sensor && current_state == Receive) {
-    current_rx_sleep = convert_to_sleepydog_time(expovariate(RX_RATE));
-    next_receive = millis() + current_rx_sleep;
-  }
-  // Generate new reading generation time if there are sensors and we just generated a data packet
-  if (my_data.has_sensor && current_state == Reading) {
-    next_reading = millis() + PACKET_PERIOD;
-  }
-  // Generate new health packet generation time if is relay and we just generated a health packet
-  if (!my_data.has_sensor && current_state == HealthPacket) {
-    next_health = millis() + HEALTH_PACKET_PERIOD;
-  }
-  State next_state;
-  uint32_t next_time;
-  if (my_data.has_sensor) {
-    // transmit, or generate data
-    if (next_transmit - millis() < next_reading - millis()) {
-      next_time = next_transmit;
-      next_state = Transmit;
+    // For debug purposes
+    blink_led_periodically();
+    // Update packet ages
+    updatePacketAge(millis() - loop_start_time);
+    // Unified sleep
+    // Generate new transmit time if packet_queue is not empty and we just
+    // transmitted
+    if (packet_queue.size > 0 &&
+        (current_state == Transmit || !transmit_valid)) {
+        current_tx_sleep = convert_to_sleepydog_time(expovariate(TX_RATE));
+        next_transmit = millis() + current_tx_sleep;
+        transmit_valid = true;
+    }
+    // Generate new receive time if there's no sensors (isRelay)
+    if (!my_data.has_sensor && current_state == Receive) {
+        current_rx_sleep = convert_to_sleepydog_time(expovariate(RX_RATE));
+        next_receive = millis() + current_rx_sleep;
+    }
+    // Generate new reading generation time if there are sensors and we just
+    // generated a data packet
+    if (my_data.has_sensor && current_state == Reading) {
+        next_reading = millis() + PACKET_PERIOD;
+    }
+    // Generate new health packet generation time if is relay and we just
+    // generated a health packet
+    if (!my_data.has_sensor && current_state == HealthPacket) {
+        next_health = millis() + HEALTH_PACKET_PERIOD;
+    }
+    State next_state;
+    uint32_t next_time;
+    if (my_data.has_sensor) {
+        // transmit, or generate data
+        if (next_transmit - millis() < next_reading - millis()) {
+            next_time = next_transmit;
+            next_state = Transmit;
+        } else {
+            next_time = next_reading;
+            next_state = Reading;
+        }
     } else {
-      next_time = next_reading;
-      next_state = Reading;
-    }
-  } else {
-    // transmit, receive, or generate health
-    if (next_transmit - millis() < next_receive - millis()) {
-      next_time = next_transmit;
-      next_state = Transmit;
-    } else {
-      next_time = next_receive;
-      next_state = Receive;
-    }
+        // transmit, receive, or generate health
+        if (transmit_valid) {
+            if (next_transmit - millis() < next_receive - millis()) {
+                next_time = next_transmit;
+                next_state = Transmit;
+            } else {
+                next_time = next_receive;
+                next_state = Receive;
+            }
 
-    if (next_health - millis() < next_time - millis()) {
-      next_time = next_health;
-      next_state = HealthPacket;
+            if (next_health - millis() < next_time - millis()) {
+                next_time = next_health;
+                next_state = HealthPacket;
+            }
+        } else {
+            if (next_receive - millis() < next_health - millis()) {
+                next_time = next_receive;
+                next_state = Receive;
+            } else {
+                next_time = next_health;
+                next_state = HealthPacket;
+            }
+        }
     }
-  }
-  delay(next_time - millis());
-  current_state = next_state;
+    delay(next_time - millis());
+    current_state = next_state;
 }
