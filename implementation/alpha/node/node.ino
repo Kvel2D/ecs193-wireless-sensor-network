@@ -184,7 +184,7 @@ void blink_led_periodically() {
     }
 }
 
-#define print_float(x) (int) x, ((int) round(x * 10.0f)) % 10
+#define print_float(x) (int) round(x), ((int) round(x * 10.0f)) % 10
 
 void print_packet(struct Packet p) {
     // 1 uint16 (5 chars)
