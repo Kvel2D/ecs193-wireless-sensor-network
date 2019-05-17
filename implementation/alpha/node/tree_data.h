@@ -432,14 +432,14 @@ const PROGMEM NodeData tree_data[] = {
 // 70
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = 254,
+        .has_sensor = true,
     },
 // 71
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = 254,
+        .has_sensor = true,
     },
 // 72
     {
@@ -792,14 +792,14 @@ const PROGMEM NodeData tree_data[] = {
 // 130
     {
         .rx_frequency = NO_FREQ,
-        .parent = 254,
-        .has_sensor = true,
+        .parent = NO_ID,
+        .has_sensor = false,
     },
 // 131
     {
-        .rx_frequency = NO_FREQ,
+        .rx_frequency = 433.25,
         .parent = 254,
-        .has_sensor = true,
+        .has_sensor = false,
     },
 // 132
     {
@@ -1535,7 +1535,7 @@ const PROGMEM NodeData tree_data[] = {
     },
 // 254
     {
-        .rx_frequency = 433.25f,
+        .rx_frequency = 433.5f,
         .parent = NO_ID,
         .has_sensor = false,
     },
