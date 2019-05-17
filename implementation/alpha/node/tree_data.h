@@ -791,7 +791,7 @@ const PROGMEM NodeData tree_data[] = {
     },
 // 130
     {
-        .rx_frequency = 433.25,
+        .rx_frequency = 433.25f,
         .parent = 254,
         .has_sensor = false,
     },
