@@ -426,19 +426,19 @@ const PROGMEM NodeData tree_data[] = {
 // 69
     {
         .rx_frequency = NO_FREQ,
-        .parent = 131,
+        .parent = 130,
         .has_sensor = true,
     },
 // 70
     {
         .rx_frequency = NO_FREQ,
-        .parent = 131,
+        .parent = 130,
         .has_sensor = true,
     },
 // 71
     {
         .rx_frequency = NO_FREQ,
-        .parent = 131,
+        .parent = 130,
         .has_sensor = true,
     },
 // 72
@@ -791,14 +791,14 @@ const PROGMEM NodeData tree_data[] = {
     },
 // 130
     {
-        .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
+        .rx_frequency = 433.25,
+        .parent = 254,
         .has_sensor = false,
     },
 // 131
     {
-        .rx_frequency = 433.25,
-        .parent = 254,
+        .rx_frequency = NO_FREQ,
+        .parent = NO_ID,
         .has_sensor = false,
     },
 // 132
