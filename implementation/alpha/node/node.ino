@@ -198,7 +198,7 @@ void print_packet(struct Packet p) {
 
 void loop_tx() {
     // Set frequency
-    float expected_frequency = my_data.rx_frequency;
+    float expected_frequency = parent_data.rx_frequency;
     if (current_frequency != expected_frequency) {
         rf69.setFrequency(expected_frequency);
         current_frequency = expected_frequency;
@@ -231,7 +231,7 @@ void loop_tx() {
 
 void loop_rx() {
     // Set frequency
-    float expected_frequency = parent_data.rx_frequency;
+    float expected_frequency = my_data.rx_frequency;
     if (current_frequency != expected_frequency) {
         rf69.setFrequency(expected_frequency);
         current_frequency = expected_frequency;
@@ -424,6 +424,6 @@ void loop() {
             }
         }
     }
-    delay(next_time - millis());
+    delay(convert_to_sleepydog_time(next_time - millis()));
     current_state = next_state;
 }
