@@ -1,8 +1,15 @@
 #include <EEPROM.h>
 
-#define ID 129
+// How to use:
+// Write the ID that you need
+// Upload the code to a board
+// Open the serial monitor
+// Recommended to label the board's id with tape
+
+#define ID 69
 
 void setup() {
+    // Wait for serial monitor to open
     Serial.begin(115200);
     while (!Serial) {
         delay(1);
@@ -12,8 +19,6 @@ void setup() {
     Serial.print("writing ID = ");
     Serial.println(ID);
     EEPROM.write(EEPROM.length() - 1, ID);
-
-    // Serial.begin(115200);
 
     // Check ID
     uint8_t current_id = EEPROM.read(EEPROM.length() - 1);
