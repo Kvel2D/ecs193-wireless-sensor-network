@@ -5,10 +5,10 @@
 OneWire  ds(2);  // on pin 2 (a 4.7K resistor is necessary)
 
 void setup(void) {
-  Serial.begin(9600);
+    Serial.begin(9600);
 
-  byte i;
-  byte addr[8];
+    byte i;
+    byte addr[8];
 
     if (1) {
         while (!Serial) {
@@ -16,18 +16,18 @@ void setup(void) {
         }
     }
 
-  if ( !ds.search(addr)) {
-    Serial.println("No more addresses.");
-    Serial.println();
-    ds.reset_search();
-  }
-  else {
-    Serial.print("ROM =");
-    for( i = 0; i < 8; i++) {
-      Serial.write(' ');
-      Serial.print(addr[i], HEX);
+    if ( !ds.search(addr)) {
+        Serial.println("No connection.");
+        Serial.println();
+        ds.reset_search();
     }
-  }
+    else {
+        Serial.print("Serial number =");
+        for( i = 0; i < 8; i++) {
+            Serial.write(' ');
+            Serial.print(addr[i], HEX);
+        }
+    }
 }
 
 void loop(void) {
