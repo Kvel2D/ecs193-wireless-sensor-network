@@ -29,20 +29,21 @@ uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 NodeData my_data;
 NodeData parent_data;
 
-#define PRINT_DEBUG     false
-#define WAIT_FOR_SERIAL false
+#define PRINT_DEBUG     true
+#define WAIT_FOR_SERIAL true
 #define RF69_FREQ       433.0
 #define RFM69_CS        8
 #define RFM69_INT       7
 #define RFM69_RST       4
 #define LED_PIN         13
 #define LED_PERIOD      (60ul * 1000ul)
-#define FAKE_SLEEP_DURATION     (60ul * 1000ul)
+#define REPORT_PERIOD   (60ul * 1000ul)
 
 #define PACKET_PERIOD           (5ul * 60ul * 1000ul)
 #define HEALTH_PACKET_PERIOD    (60ul * 60ul * 1000ul)
 #define RX_RATE                 (600.0f)
 #define TX_RATE                 (200.0f)
+#define FAKE_SLEEP_DURATION     (60ul * 1000ul)
 
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
@@ -131,14 +132,12 @@ void setup() {
     // generate health or reading packet on startup
     if (!my_data.has_sensor) {
         current_state = HealthPacket;
-        current_rx_sleep = expovariate(RX_RATE);
-        next_receive = correct_millis() + current_rx_sleep;
+        next_receive = expovariate(RX_RATE);
     } else {
         current_state = Reading;
     }
     // Both relay and sensor nodes will need a tx sleep
-    current_tx_sleep = expovariate(TX_RATE);
-    next_transmit = correct_millis() + current_tx_sleep;
+    next_transmit = expovariate(TX_RATE);
     transmit_valid = true;
 }
 
@@ -202,8 +201,27 @@ void blink_led_periodically() {
     }
 }
 
-#define print_float(x) (int) round(x), ((int) round(x * 10.0f)) % 10
+void report_periodically() {
+    static uint32_t last_report_time = 0;
+    uint32_t current_time = correct_millis();
+    if (current_time - last_report_time > REPORT_PERIOD || current_state == Reading || current_state == HealthPacket) {
+        last_report_time = current_time;
+        Serial.print("Report: T: ");
+        Serial.print(millis());
+        Serial.print(" TX: ");
+        Serial.print(next_transmit);
+        Serial.print(" RX: ");
+        Serial.print(next_receive);        
+        Serial.print(" Rd: ");
+        Serial.print(next_reading);
+        Serial.print(" Ht: ");
+        Serial.print(next_health);
+        Serial.print(" TX_valid: ");
+        Serial.println(transmit_valid);
+    }
+}
 
+#define print_float(x) (int) round(x), ((int) round(x * 10.0f)) % 10
 void print_packet(struct Packet p) {
     // 1 uint16 (5 chars)
     // 3 uint8 (3 chars)
@@ -436,7 +454,9 @@ void increment_packet_age(uint32_t time) {
 }
 
 void loop() {
-    uint32_t loop_start_time = correct_millis();
+    static uint32_t loop_start;
+    static uint32_t loop_end;
+    loop_start = correct_millis();
     switch (current_state) {
         case Reading:
             data_packet_generate();
@@ -454,68 +474,116 @@ void loop() {
     }
     // For debug purposes
     blink_led_periodically();
-    // Unified sleep
-    // Generate new transmit time if packet_queue is not empty and we just
-    // transmitted
-    if (packet_queue.size > 0 &&
-        (current_state == Transmit || !transmit_valid)) {
-        current_tx_sleep = expovariate(TX_RATE);
-        next_transmit = correct_millis() + current_tx_sleep;
-        transmit_valid = true;
-    }
-    // Generate new receive time if there's no sensors (isRelay)
-    if (!my_data.has_sensor && current_state == Receive) {
-        current_rx_sleep = expovariate(RX_RATE);
-        next_receive = correct_millis() + current_rx_sleep;
-    }
-    // Generate new reading generation time if there are sensors and we just
-    // generated a data packet
-    if (my_data.has_sensor && current_state == Reading) {
-        next_reading = correct_millis() + PACKET_PERIOD;
-    }
-    // Generate new health packet generation time if is relay and we just
-    // generated a health packet
-    if (!my_data.has_sensor && current_state == HealthPacket) {
-        next_health = correct_millis() + HEALTH_PACKET_PERIOD;
-    }
-    State next_state;
-    uint32_t next_time;
-    if (my_data.has_sensor) {
-        // transmit, or generate data
-        if (next_transmit - correct_millis() < next_reading - correct_millis()) {
-            next_time = next_transmit;
-            next_state = Transmit;
-        } else {
-            next_time = next_reading;
-            next_state = Reading;
-        }
-    } else {
-        // transmit, receive, or generate health
-        if (transmit_valid) {
-            if (next_transmit - correct_millis() < next_receive - correct_millis()) {
-                next_time = next_transmit;
-                next_state = Transmit;
-            } else {
-                next_time = next_receive;
-                next_state = Receive;
-            }
 
-            if (next_health - correct_millis() < next_time - correct_millis()) {
-                next_time = next_health;
-                next_state = HealthPacket;
-            }
-        } else {  // transmit time is not valid, do not consider next_transmit
-            if (next_receive - correct_millis() < next_health - correct_millis()) {
-                next_time = next_receive;
-                next_state = Receive;
+    State next_state;
+    if (my_data.parent == NO_ID) {  // gateway always receives
+        next_state = Receive;
+    } else {
+        // Unified sleep
+        // Generate new transmit time if packet_queue is not empty and we just
+        // transmitted
+        if (packet_queue.size > 0 &&
+            (current_state == Transmit || !transmit_valid)) {
+            next_transmit = expovariate(TX_RATE);
+            transmit_valid = true;
+        }
+        // Generate new receive time if there's no sensors (isRelay)
+        if (!my_data.has_sensor && current_state == Receive) {
+            next_receive = expovariate(RX_RATE);
+        }
+        // Generate new reading generation time if there are sensors and we just
+        // generated a data packet
+        if (my_data.has_sensor && current_state == Reading) {
+            next_reading = PACKET_PERIOD;
+        }
+        // Generate new health packet generation time if is relay and we just
+        // generated a health packet
+        if (!my_data.has_sensor && current_state == HealthPacket) {
+            next_health = HEALTH_PACKET_PERIOD;
+        }
+        uint32_t next_time;
+        if (my_data.has_sensor) {
+            if (transmit_valid) {
+                // transmit, or generate data
+                if (next_transmit < next_reading) {  // must not be <= or else it will always be in transmit mode while sleeping 0
+                    next_time = next_transmit;
+                    next_state = Transmit;
+                } else {
+                    next_time = next_reading;
+                    next_state = Reading;
+                }
             } else {
-                next_time = next_health;
-                next_state = HealthPacket;
+                next_time = next_reading;
+                next_state = Reading;
+            }
+        } else {
+            // transmit, receive, or generate health
+            if (transmit_valid) {
+                if (next_transmit <= next_receive) {  // prioritizes transmit
+                    next_time = next_transmit;
+                    next_state = Transmit;
+                } else {
+                    next_time = next_receive;
+                    next_state = Receive;
+                }
+
+                if (next_health <= next_time) {  // prioritize health
+                    next_time = next_health;
+                    next_state = HealthPacket;
+                }
+            } else {  // transmit time is not valid, do not consider next_transmit
+                if (next_receive < next_health) {
+                    next_time = next_receive;
+                    next_state = Receive;
+                } else {
+                    next_time = next_health;
+                    next_state = HealthPacket;
+                }
             }
         }
+        if (PRINT_DEBUG) {
+            report_periodically();
+        }
+        if (PRINT_DEBUG) {
+            switch (next_state) {
+                case Transmit:
+                    Serial.print("Transmit: ");
+                    break;
+                case Receive:
+                    Serial.print("Receive: ");
+                    break;
+                case HealthPacket:
+                    Serial.print("Health: ");
+                    break;
+                case Reading:
+                    Serial.print("Reading: ");
+                    break;
+            }
+            Serial.println(next_time);
+        }
+        sleep(next_time);
+
+        // Update packet ages
+        increment_packet_age(correct_millis() - loop_start);
+        loop_end = correct_millis();
+        uint32_t offset = loop_end - loop_start;
+        if (next_transmit > offset)
+            next_transmit -= offset;
+        else
+            next_transmit = 0;
+        if (next_receive > offset)
+            next_receive -= offset;
+        else
+            next_receive = 0;
+        if (next_reading > offset)
+            next_reading -= offset;
+        else
+            next_reading = 0;
+        if (next_health > offset)
+            next_health -= offset;
+        else
+            next_health = 0;
     }
-    sleep(next_time - correct_millis());
     // Update packet ages
-    increment_packet_age(correct_millis() - loop_start_time);
     current_state = next_state;
 }
