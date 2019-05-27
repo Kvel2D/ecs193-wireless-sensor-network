@@ -316,7 +316,7 @@ void loop_rx() {
                     rx_success = true;
 
                     // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
-                    duplicate = is_duplicate(p.number, p.current_id);
+                    duplicate = is_duplicate(p.number, p.origin_id);
                     if (my_data.parent != NO_ID && !duplicate) {
                         p.current_id = my_id;
                         packet_queue.push(p);
