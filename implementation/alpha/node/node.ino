@@ -201,6 +201,7 @@ void blink_led_periodically() {
     }
 }
 
+
 void report_periodically() {
     static uint32_t last_report_time = 0;
     uint32_t current_time = correct_millis();
@@ -220,6 +221,9 @@ void report_periodically() {
         Serial.println(transmit_valid);
     }
 }
+
+#define print_float(x) (int) (round(x * 10) / 10), ((int) round(x * 10.0f)) % 10
+
 
 #define print_float(x) (int) round(x), ((int) round(x * 10.0f)) % 10
 void print_packet(struct Packet p) {

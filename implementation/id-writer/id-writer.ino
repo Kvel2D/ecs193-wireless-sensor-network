@@ -6,6 +6,7 @@
 // Open the serial monitor
 // Recommended to label the board's id with tape
 
+// Write ID here:
 #define ID 69
 
 void setup() {
