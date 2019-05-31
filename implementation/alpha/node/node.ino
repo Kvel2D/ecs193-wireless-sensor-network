@@ -29,8 +29,8 @@ uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 NodeData my_data;
 NodeData parent_data;
 
-#define PRINT_DEBUG     true
-#define WAIT_FOR_SERIAL true
+#define PRINT_DEBUG     false
+#define WAIT_FOR_SERIAL false
 #define RF69_FREQ       433.0
 #define RFM69_CS        8
 #define RFM69_INT       7
@@ -43,7 +43,7 @@ NodeData parent_data;
 #define HEALTH_PACKET_PERIOD    (60ul * 60ul * 1000ul)
 #define RX_RATE                 (600.0f)
 #define TX_RATE                 (200.0f)
-#define FAKE_SLEEP_DURATION     (60ul * 1000ul)
+#define FAKE_SLEEP_DURATION     (1ul * 60ul * 1000ul)
 
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
@@ -64,9 +64,7 @@ static bool transmit_valid = false; // need this boolean to tell when to generat
 float expovariate(float rate);
 uint32_t convert_to_sleepydog_time(uint32_t time);
 
-
-
-void setup() {  
+void setup() {
     pinMode(LED_PIN, OUTPUT);
 
     Serial.begin(115200);
@@ -90,7 +88,7 @@ void setup() {
 
     initialize_children_array();
 
-    pinMode(2, OUTPUT); // set up for the sensor voltage
+    pinMode(2, OUTPUT);  // set up for the sensor voltage
     pinMode(RFM69_RST, OUTPUT);
     digitalWrite(RFM69_RST, LOW);
 
@@ -123,22 +121,26 @@ void setup() {
     rf69.setTxPower(20, true);
 
     // The encryption key has to be the same as the one in the server
-    uint8_t key[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+    uint8_t key[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
     rf69.setEncryptionKey(key);
 
     rf69_manager.setRetries(0);
     rf69_manager.setTimeout(10);
 
     // generate health or reading packet on startup
-    if (!my_data.has_sensor) {
-        current_state = HealthPacket;
-        next_receive = expovariate(RX_RATE);
+    if (my_data.parent == NO_ID) {
+        current_state = Receive;
     } else {
-        current_state = Reading;
+        if (!my_data.has_sensor) {
+            current_state = HealthPacket;
+            next_receive = expovariate(RX_RATE);
+        } else {
+            current_state = Reading;
+        }
+        // Both relay and sensor nodes will need a tx sleep
+        next_transmit = expovariate(TX_RATE);
+        transmit_valid = true;
     }
-    // Both relay and sensor nodes will need a tx sleep
-    next_transmit = expovariate(TX_RATE);
-    transmit_valid = true;
 }
 
 int free_ram() {
@@ -201,7 +203,6 @@ void blink_led_periodically() {
     }
 }
 
-
 void report_periodically() {
     static uint32_t last_report_time = 0;
     uint32_t current_time = correct_millis();
@@ -221,9 +222,6 @@ void report_periodically() {
         Serial.println(transmit_valid);
     }
 }
-
-#define print_float(x) (int) (round(x * 10) / 10), ((int) round(x * 10.0f)) % 10
-
 
 #define print_float(x) (int) round(x), ((int) round(x * 10.0f)) % 10
 void print_packet(struct Packet p) {
@@ -256,10 +254,10 @@ void print_packet(struct Packet p) {
 void sleep(uint32_t sleep_time) {
     static uint32_t time_slept = 0;
 
-    // Limit max sleep_time because it needs to be converted to int(int16)
-    if (sleep_time > (uint32_t) INT16_MAX) {
-        sleep_time = (uint32_t) INT16_MAX;
-    }
+//    // Limit max sleep_time because it needs to be converted to int(int16)
+//    if (sleep_time > (uint32_t) INT16_MAX) {
+//        sleep_time = (uint32_t) INT16_MAX;
+//    }
 
     if (time_slept < FAKE_SLEEP_DURATION) {
         time_slept += sleep_time;
@@ -271,12 +269,13 @@ void sleep(uint32_t sleep_time) {
         delay(sleep_time);
     } else {
         // Other nodes sleep for real
-        int sleep_time_left = (int)sleep_time;
+//        int sleep_time_left = (int)sleep_time;
         uint32_t time_before = correct_millis();
 
-        while (sleep_time_left > 0) {
-            sleep_time_left -= Watchdog.sleep(sleep_time_left);
+        while (sleep_time > INT16_MAX) {
+            sleep_time -= Watchdog.sleep(INT16_MAX);
         }
+        if (sleep_time > 0) Watchdog.sleep(sleep_time);
 
         // Record clock error
         uint32_t perceived_sleep_time = correct_millis() - time_before;
@@ -565,6 +564,7 @@ void loop() {
             }
             Serial.println(next_time);
         }
+        
         sleep(next_time);
 
         // Update packet ages
