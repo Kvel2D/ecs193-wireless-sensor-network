@@ -29,32 +29,40 @@ uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 NodeData my_data;
 NodeData parent_data;
 
-#define PRINT_DEBUG     false
-#define WAIT_FOR_SERIAL false
+#define PRINT_DEBUG     true
+#define WAIT_FOR_SERIAL true
 #define RF69_FREQ       433.0
 #define RFM69_CS        8
 #define RFM69_INT       7
 #define RFM69_RST       4
 #define LED_PIN         13
 #define LED_PERIOD      (60ul * 1000ul)
-#define FAKE_SLEEP_DURATION     (60ul * 1000ul)
+#define REPORT_PERIOD   (60ul * 1000ul)
 
 #define PACKET_PERIOD           (5ul * 60ul * 1000ul)
 #define HEALTH_PACKET_PERIOD    (60ul * 60ul * 1000ul)
 #define RX_RATE                 (600.0f)
 #define TX_RATE                 (200.0f)
+#define FAKE_SLEEP_DURATION     (60ul * 1000ul)
 
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, my_id);
-float current_frequency = 0.0f;
-
-uint32_t last_reading_time = 0;
-uint32_t last_healthPacket_time = 0;
 Queue packet_queue;
-uint8_t packet_number = 0;
-bool do_first_health_packet = true;
-bool do_first_reading_packet = true;
+float current_frequency = 0.0f;
+static uint8_t packet_number = 0;
+typedef enum { Start, Receive, Transmit, Reading, HealthPacket } State;
+static State current_state = Start;
+static uint32_t next_reading = 0;
+static uint32_t next_health = 0;
+static uint32_t next_transmit = 0;
+static uint32_t next_receive = 0;
+static uint32_t current_tx_sleep = 0;
+static uint32_t current_rx_sleep = 0;
+static bool transmit_valid = false; // need this boolean to tell when to generate a new tx time
+
+float expovariate(float rate);
+uint32_t convert_to_sleepydog_time(uint32_t time);
 
 
 
@@ -121,7 +129,16 @@ void setup() {
     rf69_manager.setRetries(0);
     rf69_manager.setTimeout(10);
 
-    last_reading_time = correct_millis();
+    // generate health or reading packet on startup
+    if (!my_data.has_sensor) {
+        current_state = HealthPacket;
+        next_receive = expovariate(RX_RATE);
+    } else {
+        current_state = Reading;
+    }
+    // Both relay and sensor nodes will need a tx sleep
+    next_transmit = expovariate(TX_RATE);
+    transmit_valid = true;
 }
 
 int free_ram() {
@@ -184,8 +201,31 @@ void blink_led_periodically() {
     }
 }
 
+
+void report_periodically() {
+    static uint32_t last_report_time = 0;
+    uint32_t current_time = correct_millis();
+    if (current_time - last_report_time > REPORT_PERIOD || current_state == Reading || current_state == HealthPacket) {
+        last_report_time = current_time;
+        Serial.print("Report: T: ");
+        Serial.print(millis());
+        Serial.print(" TX: ");
+        Serial.print(next_transmit);
+        Serial.print(" RX: ");
+        Serial.print(next_receive);        
+        Serial.print(" Rd: ");
+        Serial.print(next_reading);
+        Serial.print(" Ht: ");
+        Serial.print(next_health);
+        Serial.print(" TX_valid: ");
+        Serial.println(transmit_valid);
+    }
+}
+
 #define print_float(x) (int) (round(x * 10) / 10), ((int) round(x * 10.0f)) % 10
 
+
+#define print_float(x) (int) round(x), ((int) round(x * 10.0f)) % 10
 void print_packet(struct Packet p) {
     // 1 uint16 (5 chars)
     // 3 uint8 (3 chars)
@@ -247,15 +287,17 @@ void sleep(uint32_t sleep_time) {
 }
 
 void loop_tx() {
+    // Set frequency
+    float expected_frequency = parent_data.rx_frequency;
+    if (current_frequency != expected_frequency) {
+        rf69.setFrequency(expected_frequency);
+        current_frequency = expected_frequency;
+    }
+    // Turn on radio
+    rf69.setModeIdle();
     bool tx_success = false;
-    uint32_t sleep_time = expovariate(TX_RATE);
-    sleep(sleep_time);
-
     do {
         tx_success = false;
-
-        // Turn on radio
-        rf69.setModeIdle();
 
         if (packet_queue.size > 0) {
             Packet packet = packet_queue.front();
@@ -274,22 +316,23 @@ void loop_tx() {
         }
     } while (tx_success && packet_queue.size > 0);
     // Chain tx's until a failed transmit or queue is empty
+    rf69.sleep();  // turn off radio
 }
 
 void loop_rx() {
+    // Set frequency
+    float expected_frequency = my_data.rx_frequency;
+    if (current_frequency != expected_frequency) {
+        rf69.setFrequency(expected_frequency);
+        current_frequency = expected_frequency;
+    }
+    // Turn on radio
+    rf69.setModeRx();
     static uint8_t buffer[RH_RF69_MAX_MESSAGE_LEN];
-
-    uint32_t sleep_time = expovariate(RX_RATE);
-    sleep(sleep_time);
-
     bool rx_success;
     do {
         rx_success = false;
-
         uint32_t start_time = correct_millis();
-    
-        // Turn on radio
-        rf69.setModeRx();
 
         // Clear buffer
         if (rf69_manager.available()) {
@@ -306,9 +349,6 @@ void loop_rx() {
                 uint8_t len = sizeof(buffer);
                 uint8_t from;
                 if (rf69_manager.recvfromAck(buffer, &len, &from)) {
-                    // Turn off radio
-                    rf69.sleep();
-                    
                     // zero out remaining string
                     buffer[len] = 0; 
 
@@ -331,9 +371,6 @@ void loop_rx() {
                 }
             }
         }
-
-        // Turn off radio
-        rf69.sleep();
         
         // Only last node prints to serial
         if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG) && (!duplicate)) {
@@ -344,41 +381,59 @@ void loop_rx() {
         }
     } while (rx_success && packet_queue.size < QUEUE_SIZE_MAX);
     // Chain rx's until a failed receive or queue is full
+    rf69.sleep();  // Turn off radio
 }
 
 void health_packet_generate() {
-    if (do_first_health_packet || correct_millis() - last_healthPacket_time >= HEALTH_PACKET_PERIOD) {
-        do_first_health_packet = false;
-        
-        Packet new_packet = {
-            .reading = {compress_float((float)packet_queue.size), 0, 0, 0, 0, 0},
-            .age = 0,
-            .number = packet_number,
-            .origin_id = my_id,
-            .current_id = my_id,
-        };
-
-        if (my_data.parent == NO_ID) {
-            // this is gateway, so print something instead of push
-            print_packet(new_packet);
-        } else {
-            // Clear space by deleting older packets
-            if (packet_queue.size == QUEUE_SIZE_MAX) {
-                packet_queue.pop();
-            }
-
-            packet_queue.push(new_packet);
+    Packet new_packet = {
+        .reading = {compress_float((float)packet_queue.size), 0, 0, 0, 0, 0},
+        .age = 0,
+        .number = packet_number,
+        .origin_id = my_id,
+        .current_id = my_id,
+    };
+    if (my_data.parent == NO_ID) {
+        // this is gateway, so print something instead of push
+        print_packet(new_packet);
+    } else {
+        // Clear space by deleting older packets
+        if (packet_queue.size == QUEUE_SIZE_MAX) {
+            packet_queue.pop();
         }
-
-        if (PRINT_DEBUG) {
-            Serial.print("Health_Packet created: ");
-            Serial.println(packet_number);
-            print_packet(new_packet);
-        }
-
-        packet_number++;
-        last_healthPacket_time = correct_millis();
+        packet_queue.push(new_packet);
     }
+    if (PRINT_DEBUG) {
+        Serial.print("Health_Packet created: ");
+        Serial.println(packet_number);
+        print_packet(new_packet);
+    }
+    packet_number++;
+}
+
+void data_packet_generate() {
+    Packet new_packet = {
+        .reading = {},
+        .age = 0,
+        .number = packet_number,
+        .origin_id = my_id,
+        .current_id = my_id,
+    };
+    float reading_f[NUM_SENSORS];
+    read_temperatures(reading_f);
+    for (int i = 0; i < NUM_SENSORS; i++) {
+        new_packet.reading[i] = compress_float(reading_f[i]);
+    }
+    // Clear space by deleting older packets
+    if (packet_queue.size == QUEUE_SIZE_MAX) {
+        packet_queue.pop();
+    }
+    packet_queue.push(new_packet);
+    if (PRINT_DEBUG) {
+        Serial.print("Packet created: ");
+        Serial.println(packet_number);
+        print_packet(new_packet);
+    }
+    packet_number++;
 }
 
 void increment_packet_age(uint32_t time) {
@@ -403,70 +458,136 @@ void increment_packet_age(uint32_t time) {
 }
 
 void loop() {
-    uint32_t loop_start_time = correct_millis();
-
-    // Do readings periodically if node has sensor
-    if (my_data.has_sensor && (do_first_reading_packet || correct_millis() - last_reading_time >= PACKET_PERIOD)) {
-        do_first_reading_packet = false;
-
-
-
-        Packet new_packet = {
-            .reading = {},
-            .age = 0,
-            .number = packet_number,
-            .origin_id = my_id,
-            .current_id = my_id,
-        };
-
-        float reading_f[NUM_SENSORS];
-        read_temperatures(reading_f);
-
-        for (int i = 0; i < NUM_SENSORS; i++) {
-            new_packet.reading[i] = compress_float(reading_f[i]);
-        }
-
-        // Clear space by deleting older packets
-        if (packet_queue.size == QUEUE_SIZE_MAX) {
-            packet_queue.pop();
-        }
-
-        packet_queue.push(new_packet);
-
-        if (PRINT_DEBUG) {
-            Serial.print("Packet created: ");
-            Serial.println(packet_number);
-            print_packet(new_packet);
-        }
-          
-        
-        packet_number++;
-
-        last_reading_time = correct_millis();
-    } else if (my_id > 128) {
-        health_packet_generate();
+    static uint32_t loop_start;
+    static uint32_t loop_end;
+    loop_start = correct_millis();
+    switch (current_state) {
+        case Reading:
+            data_packet_generate();
+            break;
+        case HealthPacket:
+            health_packet_generate();
+            break;
+        case Transmit:
+            loop_tx();
+            transmit_valid = false;  // need to generate new tx time
+            break;
+        case Receive:
+            loop_rx();
+            break;
     }
-
-    // Set frequency
-    float expected_frequency = 0.0f;
-    if (packet_queue.size > 0 && my_data.parent != NO_ID) {
-        expected_frequency = parent_data.rx_frequency;
-    } else {
-        expected_frequency = my_data.rx_frequency;
-    }
-    if (current_frequency != expected_frequency) {
-        rf69.setFrequency(expected_frequency);
-        current_frequency = expected_frequency;
-    }
-
-    if (packet_queue.size > 0 && my_data.parent != NO_ID) {
-        loop_tx();
-    } else {
-        loop_rx();
-    }
-
+    // For debug purposes
     blink_led_periodically();
 
+    State next_state;
+    if (my_data.parent == NO_ID) {  // gateway always receives
+        next_state = Receive;
+    } else {
+        // Unified sleep
+        // Generate new transmit time if packet_queue is not empty and we just
+        // transmitted
+        if (packet_queue.size > 0 &&
+            (current_state == Transmit || !transmit_valid)) {
+            next_transmit = expovariate(TX_RATE);
+            transmit_valid = true;
+        }
+        // Generate new receive time if there's no sensors (isRelay)
+        if (!my_data.has_sensor && current_state == Receive) {
+            next_receive = expovariate(RX_RATE);
+        }
+        // Generate new reading generation time if there are sensors and we just
+        // generated a data packet
+        if (my_data.has_sensor && current_state == Reading) {
+            next_reading = PACKET_PERIOD;
+        }
+        // Generate new health packet generation time if is relay and we just
+        // generated a health packet
+        if (!my_data.has_sensor && current_state == HealthPacket) {
+            next_health = HEALTH_PACKET_PERIOD;
+        }
+        uint32_t next_time;
+        if (my_data.has_sensor) {
+            if (transmit_valid) {
+                // transmit, or generate data
+                if (next_transmit < next_reading) {  // must not be <= or else it will always be in transmit mode while sleeping 0
+                    next_time = next_transmit;
+                    next_state = Transmit;
+                } else {
+                    next_time = next_reading;
+                    next_state = Reading;
+                }
+            } else {
+                next_time = next_reading;
+                next_state = Reading;
+            }
+        } else {
+            // transmit, receive, or generate health
+            if (transmit_valid) {
+                if (next_transmit <= next_receive) {  // prioritizes transmit
+                    next_time = next_transmit;
+                    next_state = Transmit;
+                } else {
+                    next_time = next_receive;
+                    next_state = Receive;
+                }
+
+                if (next_health <= next_time) {  // prioritize health
+                    next_time = next_health;
+                    next_state = HealthPacket;
+                }
+            } else {  // transmit time is not valid, do not consider next_transmit
+                if (next_receive < next_health) {
+                    next_time = next_receive;
+                    next_state = Receive;
+                } else {
+                    next_time = next_health;
+                    next_state = HealthPacket;
+                }
+            }
+        }
+        if (PRINT_DEBUG) {
+            report_periodically();
+        }
+        if (PRINT_DEBUG) {
+            switch (next_state) {
+                case Transmit:
+                    Serial.print("Transmit: ");
+                    break;
+                case Receive:
+                    Serial.print("Receive: ");
+                    break;
+                case HealthPacket:
+                    Serial.print("Health: ");
+                    break;
+                case Reading:
+                    Serial.print("Reading: ");
+                    break;
+            }
+            Serial.println(next_time);
+        }
+        sleep(next_time);
+
+        // Update packet ages
+        increment_packet_age(correct_millis() - loop_start);
+        loop_end = correct_millis();
+        uint32_t offset = loop_end - loop_start;
+        if (next_transmit > offset)
+            next_transmit -= offset;
+        else
+            next_transmit = 0;
+        if (next_receive > offset)
+            next_receive -= offset;
+        else
+            next_receive = 0;
+        if (next_reading > offset)
+            next_reading -= offset;
+        else
+            next_reading = 0;
+        if (next_health > offset)
+            next_health -= offset;
+        else
+            next_health = 0;
+    }
     // Update packet ages
-    increment_packet_age(correct_millis() - loop_start_time);
+    current_state = next_state;
 }
