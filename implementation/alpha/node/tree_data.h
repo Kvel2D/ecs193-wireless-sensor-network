@@ -1,11 +1,17 @@
 
-#define NO_ID     255
-#define NO_FREQ     430.00f
+#define NO_ID   255
+#define NO_FREQ 430.00f
+
 #define SHELTER_1_RELAY  131
+// children = 1-17
 #define SHELTER_2_RELAY  132
+// children = 18-34
 #define SHELTER_3_RELAY  129
-#define OUTDOOR_RELAY    130
+// children = 35-51
 #define BUILDING_RELAY   133
+// children = 52-68
+#define OUTDOOR_RELAY    130
+// children = 69-85
 
 struct NodeData {
     float rx_frequency;

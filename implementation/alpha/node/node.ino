@@ -29,8 +29,8 @@ uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 NodeData my_data;
 NodeData parent_data;
 
-#define PRINT_DEBUG     true
-#define WAIT_FOR_SERIAL true
+#define PRINT_DEBUG     false
+#define WAIT_FOR_SERIAL false
 #define RF69_FREQ       433.0
 #define RFM69_CS        8
 #define RFM69_INT       7
@@ -39,7 +39,7 @@ NodeData parent_data;
 #define LED_PERIOD      (60ul * 1000ul)
 #define REPORT_PERIOD   (60ul * 1000ul)
 
-#define PACKET_PERIOD           (5ul * 60ul * 1000ul)
+#define PACKET_PERIOD           (15ul * 60ul * 1000ul)
 #define HEALTH_PACKET_PERIOD    (60ul * 60ul * 1000ul)
 #define RX_RATE                 (600.0f)
 #define TX_RATE                 (200.0f)
@@ -50,21 +50,20 @@ RH_RF69 rf69(RFM69_CS, RFM69_INT);
 RHReliableDatagram rf69_manager(rf69, my_id);
 Queue packet_queue;
 float current_frequency = 0.0f;
-static uint8_t packet_number = 0;
+uint8_t packet_number = 0;
 typedef enum { Start, Receive, Transmit, Reading, HealthPacket } State;
-static State current_state = Start;
-static uint32_t next_reading = 0;
-static uint32_t next_health = 0;
-static uint32_t next_transmit = 0;
-static uint32_t next_receive = 0;
-static uint32_t current_tx_sleep = 0;
-static uint32_t current_rx_sleep = 0;
-static bool transmit_valid = false; // need this boolean to tell when to generate a new tx time
+State current_state = Start;
+uint32_t next_reading = 0;
+uint32_t next_health = 0;
+uint32_t next_transmit = 0;
+uint32_t next_receive = 0;
+uint32_t current_tx_sleep = 0;
+uint32_t current_rx_sleep = 0;
+// need this boolean to tell when to generate a new tx time
+bool transmit_valid = false;
 
 float expovariate(float rate);
 uint32_t convert_to_sleepydog_time(uint32_t time);
-
-
 
 void setup() {  
     pinMode(LED_PIN, OUTPUT);
