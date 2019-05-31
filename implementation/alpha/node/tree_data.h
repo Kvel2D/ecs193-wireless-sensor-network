@@ -1,6 +1,11 @@
 
 #define NO_ID     255
 #define NO_FREQ     430.00f
+#define SHELTER_1_RELAY  131
+#define SHELTER_2_RELAY  132
+#define SHELTER_3_RELAY  129
+#define OUTDOOR_RELAY    130
+#define BUILDING_RELAY   133
 
 struct NodeData {
     float rx_frequency;
@@ -18,512 +23,512 @@ const PROGMEM NodeData tree_data[] = {
 // 1
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 2
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 3
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 4
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 5
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 6
     {
-        .rx_frequency = 400.00f,
-        .parent = 130,
+        .rx_frequency = NO_FREQ,
+        .parent = SHELTER_1_RELAY,
         .has_sensor = true,
     },
 // 7
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 8
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 9
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 10
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 11
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 12
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 13
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 14
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 15
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 16
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 17
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_1_RELAY,
+        .has_sensor = true,
     },
 // 18
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 19
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 20
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 21
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 22
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 23
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 24
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 25
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 26
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 27
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 28
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 29
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 30
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 31
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 32
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 33
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 34
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_2_RELAY,
+        .has_sensor = true,
     },
 // 35
     {
         .rx_frequency = NO_FREQ,
-        .parent = 129,
+        .parent = SHELTER_3_RELAY,
         .has_sensor = true,
     },
 // 36
     {
         .rx_frequency = NO_FREQ,
-        .parent = 129,
+        .parent = SHELTER_3_RELAY,
         .has_sensor = true,
     },
 // 37
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 38
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 39
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 40
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 41
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 42
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 43
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 44
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 45
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 46
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 47
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 48
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 49
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 50
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 51
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = SHELTER_3_RELAY,
+        .has_sensor = true,
     },
 // 52
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 53
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 54
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 55
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 56
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 57
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 58
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 59
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 60
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 61
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 62
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 63
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 64
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 65
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 66
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 67
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 68
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = BUILDING_RELAY,
+        .has_sensor = true,
     },
 // 69
     {
         .rx_frequency = NO_FREQ,
-        .parent = 130,
+        .parent = OUTDOOR_RELAY,
         .has_sensor = true,
     },
 // 70
     {
         .rx_frequency = NO_FREQ,
-        .parent = 130,
+        .parent = OUTDOOR_RELAY,
         .has_sensor = true,
     },
 // 71
     {
         .rx_frequency = NO_FREQ,
-        .parent = 130,
+        .parent = OUTDOOR_RELAY,
         .has_sensor = true,
     },
 // 72
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 73
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 74
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 75
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 76
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 77
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 78
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 79
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 80
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 81
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 82
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 83
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 84
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 85
     {
         .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
-        .has_sensor = false,
+        .parent = OUTDOOR_RELAY,
+        .has_sensor = true,
     },
 // 86
     {
@@ -797,20 +802,20 @@ const PROGMEM NodeData tree_data[] = {
     },
 // 131
     {
-        .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
+        .rx_frequency = 433.50f,
+        .parent = 254,
         .has_sensor = false,
     },
 // 132
     {
-        .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
+        .rx_frequency = 433.75f,
+        .parent = 254,
         .has_sensor = false,
     },
 // 133
     {
-        .rx_frequency = NO_FREQ,
-        .parent = NO_ID,
+        .rx_frequency = 434.00f,
+        .parent = 254,
         .has_sensor = false,
     },
 // 134
@@ -1535,7 +1540,7 @@ const PROGMEM NodeData tree_data[] = {
     },
 // 254
     {
-        .rx_frequency = 433.5f,
+        .rx_frequency = 434.25f,
         .parent = NO_ID,
         .has_sensor = false,
     },
