@@ -257,14 +257,16 @@ void print_packet(struct Packet p) {
 }
 
 void sleep(uint32_t sleep_time) {
-    static uint32_t time_slept = 0;
+    static uint32_t time_slept_total = 0;
 
-    if (time_slept < FAKE_SLEEP_DURATION) {
-        time_slept += sleep_time;
+    uint32_t intended_sleep_time = sleep_time;
+
+    if (time_slept_total < FAKE_SLEEP_DURATION) {
+        time_slept_total += sleep_time;
     }
 
     // NOTE: Don't sleep for real at the start so that serial doesn't disconnect and board can be reflashed easily
-    if (my_data.parent == NO_ID || time_slept < FAKE_SLEEP_DURATION) {
+    if (my_data.parent == NO_ID || time_slept_total < FAKE_SLEEP_DURATION) {
         // Gateway node doesn't sleep to prevent serial disconnect
         delay(sleep_time);
     } else {
@@ -282,8 +284,8 @@ void sleep(uint32_t sleep_time) {
 
         // Record clock error
         uint32_t perceived_sleep_time = correct_millis() - time_before;
-        if (perceived_sleep_time < sleep_time) {
-            millis_error += sleep_time - perceived_sleep_time;
+        if (perceived_sleep_time < intended_sleep_time) {
+            millis_error += intended_sleep_time - perceived_sleep_time;
         }
     }
 }
