@@ -271,10 +271,13 @@ void sleep(uint32_t sleep_time) {
         // Other nodes sleep for real
         uint32_t time_before = correct_millis();
 
+        // input to sleep function is only suggested sleep time, HW may sleep less
         while (sleep_time > INT16_MAX) {
             sleep_time -= Watchdog.sleep(INT16_MAX);
         }
-        if (sleep_time > 0) Watchdog.sleep(sleep_time);
+        while (sleep_time > 0) {
+            sleep_time -= Watchdog.sleep(sleep_time);
+        }
 
         // Record clock error
         uint32_t perceived_sleep_time = correct_millis() - time_before;
