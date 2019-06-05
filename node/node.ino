@@ -275,8 +275,10 @@ void sleep(uint32_t sleep_time) {
         while (sleep_time > INT16_MAX) {
             sleep_time -= Watchdog.sleep(INT16_MAX);
         }
-        while (sleep_time > 0) {
-            sleep_time -= Watchdog.sleep(sleep_time);
+        while ((int)sleep_time > 0) {
+            int slept_for -= Watchdog.sleep(sleep_time);
+            if ((int)sleep_time >= slept_for) sleep_time -= slept_for;
+            else sleep_time = 0;
         }
 
         // Record clock error
