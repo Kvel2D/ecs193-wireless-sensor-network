@@ -30,6 +30,7 @@ NodeData my_data;
 NodeData parent_data;
 
 #define PRINT_DEBUG     false
+#define PRINT_PACKET_INFO     true
 #define WAIT_FOR_SERIAL false
 #define RF69_FREQ       433.0
 #define RFM69_CS        8
@@ -308,7 +309,7 @@ void loop_tx() {
         if (tx_success) {
             Packet popped = packet_queue.pop();
 
-            if (PRINT_DEBUG) {
+            if (PRINT_DEBUG || PRINT_PACKET_INFO) {
                 Serial.print("|TX,");
                 print_packet(popped);
             }
@@ -372,8 +373,8 @@ void loop_rx() {
         }
         
         // Only last node prints to serial
-        if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG) && (!duplicate)) {
-            if (PRINT_DEBUG) {
+        if (rx_success && (my_data.parent == NO_ID || PRINT_DEBUG || PRINT_PACKET_INFO) && (!duplicate)) {
+            if (PRINT_DEBUG || PRINT_PACKET_INFO) {
                 Serial.print("|RX,");
             }
             print_packet(p);
@@ -401,7 +402,7 @@ void health_packet_generate() {
         }
         packet_queue.push(new_packet);
     }
-    if (PRINT_DEBUG) {
+    if (PRINT_DEBUG || PRINT_PACKET_INFO) {
         Serial.print("Health_Packet created: ");
         Serial.println(packet_number);
         print_packet(new_packet);
@@ -427,7 +428,7 @@ void data_packet_generate() {
         packet_queue.pop();
     }
     packet_queue.push(new_packet);
-    if (PRINT_DEBUG) {
+    if (PRINT_DEBUG || PRINT_PACKET_INFO) {
         Serial.print("Packet created: ");
         Serial.println(packet_number);
         print_packet(new_packet);
