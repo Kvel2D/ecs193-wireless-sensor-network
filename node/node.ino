@@ -129,15 +129,19 @@ void setup() {
     rf69_manager.setTimeout(10);
 
     // generate health or reading packet on startup
-    if (!my_data.has_sensor) {
-        current_state = HealthPacket;
-        next_receive = expovariate(RX_RATE);
+    if (my_data.parent == NO_ID) {
+        current_state = Receive;
     } else {
-        current_state = Reading;
+        if (!my_data.has_sensor) {
+            current_state = HealthPacket;
+            next_receive = expovariate(RX_RATE);
+        } else {
+            current_state = Reading;
+        }
+        // Both relay and sensor nodes will need a tx sleep
+        next_transmit = expovariate(TX_RATE);
+        transmit_valid = true;
     }
-    // Both relay and sensor nodes will need a tx sleep
-    next_transmit = expovariate(TX_RATE);
-    transmit_valid = true;
 }
 
 int free_ram() {
@@ -253,34 +257,35 @@ void print_packet(struct Packet p) {
 }
 
 void sleep(uint32_t sleep_time) {
-    static uint32_t time_slept = 0;
+    static uint32_t time_slept_total = 0;
 
-    // Limit max sleep_time because it needs to be converted to int(int16)
-    if (sleep_time > (uint32_t) INT16_MAX) {
-        sleep_time = (uint32_t) INT16_MAX;
-    }
+    uint32_t intended_sleep_time = sleep_time;
 
-    if (time_slept < FAKE_SLEEP_DURATION) {
-        time_slept += sleep_time;
+    if (time_slept_total < FAKE_SLEEP_DURATION) {
+        time_slept_total += sleep_time;
     }
 
     // NOTE: Don't sleep for real at the start so that serial doesn't disconnect and board can be reflashed easily
-    if (my_data.parent == NO_ID || time_slept < FAKE_SLEEP_DURATION) {
+    if (my_data.parent == NO_ID || time_slept_total < FAKE_SLEEP_DURATION) {
         // Gateway node doesn't sleep to prevent serial disconnect
         delay(sleep_time);
     } else {
         // Other nodes sleep for real
-        int sleep_time_left = (int)sleep_time;
         uint32_t time_before = correct_millis();
 
-        while (sleep_time_left > 0) {
-            sleep_time_left -= Watchdog.sleep(sleep_time_left);
+        // input to sleep function is only suggested sleep time, HW may sleep less
+        while (sleep_time > INT16_MAX) {
+            sleep_time -= Watchdog.sleep(INT16_MAX);
+        }
+        int sleep_time_int = sleep_time;
+        while (sleep_time_int > 0) {
+            sleep_time_int -= Watchdog.sleep(sleep_time_int);
         }
 
         // Record clock error
         uint32_t perceived_sleep_time = correct_millis() - time_before;
-        if (perceived_sleep_time < sleep_time) {
-            millis_error += sleep_time - perceived_sleep_time;
+        if (perceived_sleep_time < intended_sleep_time) {
+            millis_error += intended_sleep_time - perceived_sleep_time;
         }
     }
 }
