@@ -2,9 +2,6 @@ import simpy
 import random
 import math
 
-# attempt at making rx/tx parallel, not sure if i actually did it correctly
-# from results it appears that relay node has higher awake time and ages are slightly lower but less change than expected
-
 SIM_TIME = 72 * 60 * 60 * 1000
 PACKET_PERIOD = 5 * 60 * 1000
 
@@ -65,34 +62,14 @@ def run(env, nodes, my_id, parent_id, has_sensor = False):
     # Wait for other nodes to be created
     yield env.timeout(10)
 
-    time_until_rx = 0
-    time_until_tx = 0
-
     while True:
-        should_transmit = len(node.packet_queue) > 0
-
-        if len(node.packet_queue) > 0 and parent_id != NO_ID:
-            # Have packet to transmit, so do both tx and rx
-            if time_until_rx > 0 and time_until_tx > 0:
-                # Sleep only if it's not time for either rx or tx
-                sleep_time = 0
-                if time_until_rx < time_until_tx:
-                    sleep_time = convert_time_to_sleepydog_time(time_until_rx)
-                else:
-                    sleep_time = convert_time_to_sleepydog_time(time_until_tx)
-                yield env.timeout(sleep_time)
-
-                time_until_rx -= sleep_time
-                time_until_tx -= sleep_time
-        elif time_until_rx > 0:
-            # No packet to transmit, do only rx
-            sleep_time = convert_time_to_sleepydog_time(time_until_rx)
-            yield env.timeout(sleep_time)
-            time_until_rx = 0
-
-        if (len(node.packet_queue) > 0) and parent_id != NO_ID and time_until_tx <= 0:
+        if (len(node.packet_queue) > 0) and (parent_id != NO_ID):
             # TX
-            time_until_tx = random.expovariate(1.0 / TX_RATE)
+
+            # Sleep
+            sleep_time = random.expovariate(1.0 / TX_RATE)
+            sleep_time = convert_time_to_sleepydog_time(sleep_time)
+            yield env.timeout(sleep_time)
 
             tx_start_timestamp = env.now
 
@@ -104,15 +81,13 @@ def run(env, nodes, my_id, parent_id, has_sensor = False):
             yield env.timeout(TX_ACK_TIMEOUT)
 
             node.tx_time_total += (env.now - tx_start_timestamp)
-
-        if time_until_rx <= 0:
+        else:
             # RX
-            time_until_rx = random.expovariate(1.0 / RX_RATE)
 
-            # # Sleep
-            # sleep_time = random.expovariate(1.0 / RX_RATE)
-            # sleep_time = convert_time_to_sleepydog_time(sleep_time)
-            # yield env.timeout(sleep_time)
+            # Sleep
+            sleep_time = random.expovariate(1.0 / RX_RATE)
+            sleep_time = convert_time_to_sleepydog_time(sleep_time)
+            yield env.timeout(sleep_time)
 
             node.rx_buffer.clear()
 
