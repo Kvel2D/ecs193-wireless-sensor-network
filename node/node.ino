@@ -130,7 +130,7 @@ void setup() {
     rf69_manager.setTimeout(10);
 
     // generate health or reading packet on startup
-    if (my_data.parent == NO_ID && GATEWAY_ALWAYS_ON) {
+    if (my_data.parent == NO_ID) {
         current_state = Receive;
     } else {
         if (!my_data.has_sensor) {
