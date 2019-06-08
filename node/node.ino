@@ -44,6 +44,7 @@ NodeData parent_data;
 #define RX_RATE                 (600.0f)
 #define TX_RATE                 (200.0f)
 #define FAKE_SLEEP_DURATION     (60ul * 1000ul)
+#define GATEWAY_ALWAYS_ON       false
 
 
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
@@ -129,7 +130,7 @@ void setup() {
     rf69_manager.setTimeout(10);
 
     // generate health or reading packet on startup
-    if (my_data.parent == NO_ID) {
+    if (my_data.parent == NO_ID && GATEWAY_ALWAYS_ON) {
         current_state = Receive;
     } else {
         if (!my_data.has_sensor) {
@@ -484,7 +485,7 @@ void loop() {
     blink_led_periodically();
 
     State next_state;
-    if (my_data.parent == NO_ID) {  // gateway always receives
+    if (my_data.parent == NO_ID && GATEWAY_ALWAYS_ON) {  // gateway always receives
         next_state = Receive;
     } else {
         // Unified sleep
