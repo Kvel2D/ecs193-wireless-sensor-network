@@ -1,15 +1,17 @@
-#define MAX_NUM_CHILDREN    (5)
+#define MAX_NUM_CHILDREN 16
 
-int16_t children[MAX_NUM_CHILDREN];
-int16_t last_received_packet[MAX_NUM_CHILDREN];
+uint8_t children[MAX_NUM_CHILDREN];
+uint8_t packet_numbers[MAX_NUM_CHILDREN];
+uint8_t origin_ids[MAX_NUM_CHILDREN];
 
 /* 
  *  initializes all slots in children array to -1
  */
 void initialize_children_array() {
-    for(int i = 0; i < MAX_NUM_CHILDREN; i++) {
-        children[i] = -1;
-        last_received_packet[i] = -1;
+    for (uint8_t i = 0; i < MAX_NUM_CHILDREN; i++) {
+        // NOTE: in terms of making the first lookup correctly invalid, default packet_id doesn't matter - the first lookup is invalidated because origin_id is set to NO_ID
+        children[i] = NO_ID;
+        origin_ids[i] = NO_ID;
     }
 }
 
@@ -17,23 +19,19 @@ void initialize_children_array() {
  *  find the index of children if it exists in chilren array
  *  else put it in the array
  */
-int16_t find_child(uint8_t id) {
-    bool found = false;
-    int16_t child_index = -1;
+uint8_t find_child(uint8_t current_id) {
+    uint8_t child_index = NO_ID;
 
-    for(int i = 0; i < MAX_NUM_CHILDREN; i++) {
-        if(children[i] == (int16_t) id) {
-            found = true;
+    for (uint8_t i = 0; i < MAX_NUM_CHILDREN; i++) {
+        if (children[i] == current_id) {
             child_index = i;
             break;
-        } else if(children[i] == -1) {
+        } else if (children[i] == NO_ID) {
+            // Empty slot, insert new child
+            children[i] = current_id;
             child_index = i;
             break;
         }
-    }
-
-    if(found == false && child_index != -1){
-        children[child_index] = id;
     }
 
     return child_index;
@@ -42,19 +40,20 @@ int16_t find_child(uint8_t id) {
 /* 
  * checks whether a packet is a duplicate
  */
-bool is_duplicate(uint8_t packet_number, uint8_t id) {
-    int16_t child_index = find_child(id);
+bool is_duplicate(Packet p) {
+    uint8_t child_index = find_child(p.current_id);
 
     // ran out of slots in array!
     // should never come here
-    if(child_index == -1) {
+    if (child_index == NO_ID) {
         return false;
     }
 
-    if(last_received_packet[child_index] == (int16_t)packet_number) {
+    if (packet_numbers[child_index] == p.number && origin_ids[child_index] == p.origin_id) {
         return true;
     } else {
-        last_received_packet[child_index] = (int16_t)packet_number;
+        packet_number[child_index] = p.number;
+        origin_ids[child_index] = p.origin_id;
         return false;
     }
 }

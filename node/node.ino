@@ -361,13 +361,13 @@ void loop_rx() {
                     rx_success = true;
 
                     // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
-                    duplicate = is_duplicate(p.number, p.origin_id);
+                    duplicate = is_duplicate(p);
                     if (my_data.parent != NO_ID && !duplicate) {
                         p.current_id = my_id;
                         packet_queue.push(p);
                     } 
 
-                    if(duplicate && PRINT_DEBUG) {
+                    if (duplicate && PRINT_DEBUG) {
                       Serial.print("duplicate: ");
                       Serial.println(p.number);
                     }
