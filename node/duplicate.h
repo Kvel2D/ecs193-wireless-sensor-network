@@ -52,7 +52,7 @@ bool is_duplicate(Packet p) {
     if (packet_numbers[child_index] == p.number && origin_ids[child_index] == p.origin_id) {
         return true;
     } else {
-        packet_number[child_index] = p.number;
+        packet_numbers[child_index] = p.number;
         origin_ids[child_index] = p.origin_id;
         return false;
     }

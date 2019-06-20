@@ -9,7 +9,6 @@
 
 #include "sensor.h"
 #include "tree_data.h"
-#include "duplicate.h"
 
 struct Packet {
     uint16_t reading[NUM_SENSORS];
@@ -20,6 +19,7 @@ struct Packet {
 };
 
 #include "queue.h"
+#include "duplicate.h"
 
 // NOTE: uncomment whichever id method you use
 // Hardcode id
