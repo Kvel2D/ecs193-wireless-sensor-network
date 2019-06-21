@@ -30,6 +30,7 @@ NodeData my_data;
 NodeData parent_data;
 
 #define PRINT_DEBUG     false
+#define PRINT_STATE_DEBUG false
 #define WAIT_FOR_SERIAL false
 #define RF69_FREQ       433.0
 #define RFM69_CS        8
@@ -550,10 +551,10 @@ void loop() {
                 }
             }
         }
-        if (PRINT_DEBUG) {
+        if (PRINT_STATE_DEBUG) {
             report_periodically();
         }
-        if (PRINT_DEBUG) {
+        if (PRINT_STATE_DEBUG) {
             switch (next_state) {
                 case Transmit:
                     Serial.print("Transmit: ");
