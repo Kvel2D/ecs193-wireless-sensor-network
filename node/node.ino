@@ -9,7 +9,6 @@
 
 #include "sensor.h"
 #include "tree_data.h"
-#include "duplicate.h"
 
 struct Packet {
     uint16_t reading[NUM_SENSORS];
@@ -20,6 +19,7 @@ struct Packet {
 };
 
 #include "queue.h"
+#include "duplicate.h"
 
 // NOTE: uncomment whichever id method you use
 // Hardcode id
@@ -30,6 +30,7 @@ NodeData my_data;
 NodeData parent_data;
 
 #define PRINT_DEBUG     false
+#define PRINT_STATE_DEBUG false
 #define WAIT_FOR_SERIAL false
 #define RF69_FREQ       433.0
 #define RFM69_CS        8
@@ -228,8 +229,6 @@ void report_periodically() {
 
 #define print_float(x) (int) (round(x * 10) / 10), ((int) round(x * 10.0f)) % 10
 
-
-#define print_float(x) (int) round(x), ((int) round(x * 10.0f)) % 10
 void print_packet(struct Packet p) {
     // 1 uint16 (5 chars)
     // 3 uint8 (3 chars)
@@ -361,13 +360,13 @@ void loop_rx() {
                     rx_success = true;
 
                     // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
-                    duplicate = is_duplicate(p.number, p.origin_id);
+                    duplicate = is_duplicate(p);
                     if (my_data.parent != NO_ID && !duplicate) {
                         p.current_id = my_id;
                         packet_queue.push(p);
                     } 
 
-                    if(duplicate && PRINT_DEBUG) {
+                    if (duplicate && PRINT_DEBUG) {
                       Serial.print("duplicate: ");
                       Serial.println(p.number);
                     }
@@ -550,10 +549,10 @@ void loop() {
                 }
             }
         }
-        if (PRINT_DEBUG) {
+        if (PRINT_STATE_DEBUG) {
             report_periodically();
         }
-        if (PRINT_DEBUG) {
+        if (PRINT_STATE_DEBUG) {
             switch (next_state) {
                 case Transmit:
                     Serial.print("Transmit: ");
