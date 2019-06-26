@@ -249,10 +249,12 @@ void print_packet(struct Packet p) {
         print_float(decompress_float(p.reading[4])),
         print_float(decompress_float(p.reading[5])));
 
-    Serial.println(print_packet_buffer);
-
-    if ((size_t)print_size > sizeof(print_packet_buffer)) {
-        Serial.println("print_packet_buffer too small");
+    if (Serial) {
+        Serial.println(print_packet_buffer);
+        
+        if ((size_t)print_size > sizeof(print_packet_buffer)) {
+            Serial.println("print_packet_buffer too small");
+        }
     }
 }
 
