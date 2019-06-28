@@ -326,6 +326,10 @@ void loop_tx() {
 }
 
 void loop_rx() {
+    if (packet_queue.size == QUEUE_SIZE_MAX) {
+        return;
+    }
+
     // Set frequency
     float expected_frequency = my_data.rx_frequency;
     if (current_frequency != expected_frequency) {
@@ -369,8 +373,8 @@ void loop_rx() {
                     } 
 
                     if (duplicate && PRINT_DEBUG) {
-                      Serial.print("duplicate: ");
-                      Serial.println(p.number);
+                        Serial.print("duplicate: ");
+                        Serial.println(p.number);
                     }
 
                     break;
