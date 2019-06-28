@@ -385,7 +385,7 @@ void loop_rx() {
             }
             print_packet(p);
         }
-    } while (rx_success && packet_queue.size < QUEUE_SIZE_MAX);
+    } while (rx_success);
     // Chain rx's until a failed receive or queue is full
     rf69.sleep();  // Turn off radio
 }
@@ -402,10 +402,6 @@ void health_packet_generate() {
         // this is gateway, so print something instead of push
         print_packet(new_packet);
     } else {
-        // Clear space by deleting older packets
-        if (packet_queue.size == QUEUE_SIZE_MAX) {
-            packet_queue.pop();
-        }
         packet_queue.push(new_packet);
     }
     if (PRINT_DEBUG) {
@@ -428,10 +424,6 @@ void data_packet_generate() {
     read_temperatures(reading_f);
     for (int i = 0; i < NUM_SENSORS; i++) {
         new_packet.reading[i] = compress_float(reading_f[i]);
-    }
-    // Clear space by deleting older packets
-    if (packet_queue.size == QUEUE_SIZE_MAX) {
-        packet_queue.pop();
     }
     packet_queue.push(new_packet);
     if (PRINT_DEBUG) {
