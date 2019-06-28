@@ -70,13 +70,20 @@ uint32_t convert_to_sleepydog_time(uint32_t time);
 void setup() {  
     pinMode(LED_PIN, OUTPUT);
 
+    delay(60ul * 1000ul);
+
     Serial.begin(115200);
 
-    if (WAIT_FOR_SERIAL) {
+    // Turn on LED while waiting for serial for debugging
+    digitalWrite(LED_PIN, HIGH);
+
+    if (WAIT_FOR_SERIAL || my_id == 254) {
         while (!Serial) {
             delay(1);
         }
     }
+
+    digitalWrite(LED_PIN, LOW);
 
     // Read node and parent data
     memcpy_P(&my_data, &tree_data[my_id], sizeof(NodeData));
