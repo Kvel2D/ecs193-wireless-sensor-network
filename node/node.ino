@@ -308,6 +308,10 @@ void loop_tx() {
         if (packet_queue.size > 0) {
             Packet packet = packet_queue.front();
 
+            if (my_data.has_sensor == false && packet.origin_id == my_id) {
+                packet.reading[1] = compress_float((float)packet_queue.size);
+            }
+
             // Transmit
             tx_success = rf69_manager.sendtoWait((uint8_t *) &packet, sizeof(Packet), my_data.parent);
         }
@@ -472,25 +476,31 @@ void loop() {
     static uint32_t loop_end;
     loop_start = correct_millis();
     switch (current_state) {
-        case Reading:
+        case Reading: {
             data_packet_generate();
             break;
-        case HealthPacket:
+        }
+        case HealthPacket: {
             health_packet_generate();
             break;
-        case Transmit:
+        }
+        case Transmit: {
             loop_tx();
-            transmit_valid = false;  // need to generate new tx time
+            // need to generate new tx time
+            transmit_valid = false;
             break;
-        case Receive:
+        }
+        case Receive: {
             loop_rx();
             break;
+        }
     }
     // For debug purposes
     blink_led_periodically();
 
     State next_state;
-    if (my_data.parent == NO_ID && GATEWAY_ALWAYS_ON) {  // gateway always receives
+    // gateway always receives
+    if (my_data.parent == NO_ID && GATEWAY_ALWAYS_ON) {
         next_state = Receive;
     } else {
         // Unified sleep
@@ -499,27 +509,28 @@ void loop() {
         if (packet_queue.size > 0 &&
             (current_state == Transmit || !transmit_valid)) {
             next_transmit = expovariate(TX_RATE);
-            transmit_valid = true;
-        }
-        // Generate new receive time if there's no sensors (isRelay)
-        if (!my_data.has_sensor && current_state == Receive) {
-            next_receive = expovariate(RX_RATE);
-        }
-        // Generate new reading generation time if there are sensors and we just
-        // generated a data packet
-        if (my_data.has_sensor && current_state == Reading) {
-            next_reading = PACKET_PERIOD;
-        }
-        // Generate new health packet generation time if is relay and we just
-        // generated a health packet
-        if (!my_data.has_sensor && current_state == HealthPacket) {
-            next_health = HEALTH_PACKET_PERIOD;
-        }
-        uint32_t next_time;
-        if (my_data.has_sensor) {
-            if (transmit_valid) {
+        transmit_valid = true;
+    }
+    // Generate new receive time if there's no sensors (isRelay)
+    if (!my_data.has_sensor && current_state == Receive) {
+        next_receive = expovariate(RX_RATE);
+    }
+    // Generate new reading generation time if there are sensors and we just
+    // generated a data packet
+    if (my_data.has_sensor && current_state == Reading) {
+        next_reading = PACKET_PERIOD;
+    }
+    // Generate new health packet generation time if is relay and we just
+    // generated a health packet
+    if (!my_data.has_sensor && current_state == HealthPacket) {
+        next_health = HEALTH_PACKET_PERIOD;
+    }
+    uint32_t next_time;
+    if (my_data.has_sensor) {
+        if (transmit_valid) {
                 // transmit, or generate data
-                if (next_transmit < next_reading) {  // must not be <= or else it will always be in transmit mode while sleeping 0
+                // must not be <= or else it will always be in transmit mode while sleeping 0
+                if (next_transmit < next_reading) {
                     next_time = next_transmit;
                     next_state = Transmit;
                 } else {
@@ -533,7 +544,8 @@ void loop() {
         } else {
             // transmit, receive, or generate health
             if (transmit_valid) {
-                if (next_transmit <= next_receive) {  // prioritizes transmit
+                // prioritizes transmit
+                if (next_transmit <= next_receive) {
                     next_time = next_transmit;
                     next_state = Transmit;
                 } else {
@@ -541,11 +553,13 @@ void loop() {
                     next_state = Receive;
                 }
 
-                if (next_health <= next_time) {  // prioritize health
+                // prioritize health
+                if (next_health <= next_time) {
                     next_time = next_health;
                     next_state = HealthPacket;
                 }
-            } else {  // transmit time is not valid, do not consider next_transmit
+            } else {
+                // transmit time is not valid, do not consider next_transmit
                 if (next_receive < next_health) {
                     next_time = next_receive;
                     next_state = Receive;
@@ -560,18 +574,22 @@ void loop() {
         }
         if (PRINT_STATE_DEBUG) {
             switch (next_state) {
-                case Transmit:
+                case Transmit: {
                     Serial.print("Transmit: ");
                     break;
-                case Receive:
+                }
+                case Receive: {
                     Serial.print("Receive: ");
                     break;
-                case HealthPacket:
+                }
+                case HealthPacket: {
                     Serial.print("Health: ");
                     break;
-                case Reading:
+                }
+                case Reading: {
                     Serial.print("Reading: ");
                     break;
+                }
             }
             Serial.println(next_time);
         }
@@ -581,22 +599,26 @@ void loop() {
         increment_packet_age(correct_millis() - loop_start);
         loop_end = correct_millis();
         uint32_t offset = loop_end - loop_start;
-        if (next_transmit > offset)
+        if (next_transmit > offset) {
             next_transmit -= offset;
-        else
+        } else {
             next_transmit = 0;
-        if (next_receive > offset)
+        }
+        if (next_receive > offset) {
             next_receive -= offset;
-        else
+        } else {
             next_receive = 0;
-        if (next_reading > offset)
+        }
+        if (next_reading > offset) {
             next_reading -= offset;
-        else
+        } else {
             next_reading = 0;
-        if (next_health > offset)
+        }
+        if (next_health > offset) {
             next_health -= offset;
-        else
+        } else {
             next_health = 0;
+        }
     }
     // Update packet ages
     current_state = next_state;
