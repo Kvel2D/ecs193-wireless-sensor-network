@@ -6,11 +6,6 @@ struct Queue {
     uint8_t size = 0;
 
     void push(Packet packet) {
-        // Clear space by deleting older packets
-        if (size == QUEUE_SIZE_MAX) {
-            packet_queue.pop();
-        }
-        
         if (size < QUEUE_SIZE_MAX - 1) {
             data[(head + size) % QUEUE_SIZE_MAX] = packet;
             size++;
