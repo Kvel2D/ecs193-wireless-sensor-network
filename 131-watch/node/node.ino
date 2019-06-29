@@ -23,9 +23,9 @@ struct Packet {
 
 // NOTE: uncomment whichever id method you use
 // Hardcode id
-// uint8_t my_id = 0;
+uint8_t my_id = 129;
 // Read id from EEPROM
-uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
+// uint8_t my_id = EEPROM.read(EEPROM.length() - 1);
 NodeData my_data;
 NodeData parent_data;
 
@@ -63,6 +63,8 @@ uint32_t current_tx_sleep = 0;
 uint32_t current_rx_sleep = 0;
 // need this boolean to tell when to generate a new tx time
 bool transmit_valid = false;
+
+bool got_packet_from_131 = false;
 
 float expovariate(float rate);
 uint32_t convert_to_sleepydog_time(uint32_t time);
@@ -369,24 +371,31 @@ void loop_rx() {
                 // Wait for a message addressed to us from the client
                 uint8_t len = sizeof(buffer);
                 uint8_t from;
-                if (rf69_manager.recvfromAck(buffer, &len, &from)) {
+                // NOTE: don't ack because this node is for spying
+                if (rf69_manager.recvfrom(buffer, &len, &from)) {
                     // zero out remaining string
                     buffer[len] = 0; 
 
                     memcpy(&p, buffer, sizeof(Packet));
-                    rx_success = true;
+                    // NOTE: do not chain
+                    // rx_success = true;
+                    rx_success = false;
+
+                    if (p.current_id == 131) {
+                        got_packet_from_131 = true;
+                    }
 
                     // NOTE: Last node doesn't put packets into queue, they are "transferred" to gateway when packet is printer
-                    duplicate = is_duplicate(p);
-                    if (my_data.parent != NO_ID && !duplicate) {
-                        p.current_id = my_id;
-                        packet_queue.push(p);
-                    } 
+                    // duplicate = is_duplicate(p);
+                    // if (my_data.parent != NO_ID && !duplicate) {
+                    //     p.current_id = my_id;
+                    //     packet_queue.push(p);
+                    // } 
 
-                    if (duplicate && PRINT_DEBUG) {
-                        Serial.print("duplicate: ");
-                        Serial.println(p.number);
-                    }
+                    // if (duplicate && PRINT_DEBUG) {
+                    //     Serial.print("duplicate: ");
+                    //     Serial.println(p.number);
+                    // }
 
                     break;
                 }
@@ -413,6 +422,14 @@ void health_packet_generate() {
         .origin_id = my_id,
         .current_id = my_id,
     };
+
+    if (got_packet_from_131) {
+        new_packet.reading[2] = compress_float(12.3f);  
+    } else {
+        new_packet.reading[2] = compress_float(45.6f);    
+    }
+    got_packet_from_131 = false;  
+
     if (my_data.parent == NO_ID) {
         // this is gateway, so print something instead of push
         print_packet(new_packet);
@@ -537,96 +554,96 @@ void loop() {
         if (transmit_valid) {
                 // transmit, or generate data
                 // must not be <= or else it will always be in transmit mode while sleeping 0
-                if (next_transmit < next_reading) {
-                    next_time = next_transmit;
-                    next_state = Transmit;
-                } else {
-                    next_time = next_reading;
-                    next_state = Reading;
-                }
+            if (next_transmit < next_reading) {
+                next_time = next_transmit;
+                next_state = Transmit;
             } else {
                 next_time = next_reading;
                 next_state = Reading;
             }
         } else {
+            next_time = next_reading;
+            next_state = Reading;
+        }
+    } else {
             // transmit, receive, or generate health
-            if (transmit_valid) {
+        if (transmit_valid) {
                 // prioritizes transmit
-                if (next_transmit <= next_receive) {
-                    next_time = next_transmit;
-                    next_state = Transmit;
-                } else {
-                    next_time = next_receive;
-                    next_state = Receive;
-                }
+            if (next_transmit <= next_receive) {
+                next_time = next_transmit;
+                next_state = Transmit;
+            } else {
+                next_time = next_receive;
+                next_state = Receive;
+            }
 
                 // prioritize health
-                if (next_health <= next_time) {
-                    next_time = next_health;
-                    next_state = HealthPacket;
-                }
-            } else {
+            if (next_health <= next_time) {
+                next_time = next_health;
+                next_state = HealthPacket;
+            }
+        } else {
                 // transmit time is not valid, do not consider next_transmit
-                if (next_receive < next_health) {
-                    next_time = next_receive;
-                    next_state = Receive;
-                } else {
-                    next_time = next_health;
-                    next_state = HealthPacket;
-                }
+            if (next_receive < next_health) {
+                next_time = next_receive;
+                next_state = Receive;
+            } else {
+                next_time = next_health;
+                next_state = HealthPacket;
             }
-        }
-        if (PRINT_STATE_DEBUG) {
-            report_periodically();
-        }
-        if (PRINT_STATE_DEBUG) {
-            switch (next_state) {
-                case Transmit: {
-                    Serial.print("Transmit: ");
-                    break;
-                }
-                case Receive: {
-                    Serial.print("Receive: ");
-                    break;
-                }
-                case HealthPacket: {
-                    Serial.print("Health: ");
-                    break;
-                }
-                case Reading: {
-                    Serial.print("Reading: ");
-                    break;
-                }
-            }
-            Serial.println(next_time);
-        }
-        sleep(next_time);
-
-        // Update packet ages
-        increment_packet_age(correct_millis() - loop_start);
-        loop_end = correct_millis();
-        uint32_t offset = loop_end - loop_start;
-        if (next_transmit > offset) {
-            next_transmit -= offset;
-        } else {
-            next_transmit = 0;
-        }
-        if (next_receive > offset) {
-            next_receive -= offset;
-        } else {
-            next_receive = 0;
-        }
-        if (next_reading > offset) {
-            next_reading -= offset;
-        } else {
-            next_reading = 0;
-        }
-        if (next_health > offset) {
-            next_health -= offset;
-        } else {
-            next_health = 0;
         }
     }
+    if (PRINT_STATE_DEBUG) {
+        report_periodically();
+    }
+    if (PRINT_STATE_DEBUG) {
+        switch (next_state) {
+            case Transmit: {
+                Serial.print("Transmit: ");
+                break;
+            }
+            case Receive: {
+                Serial.print("Receive: ");
+                break;
+            }
+            case HealthPacket: {
+                Serial.print("Health: ");
+                break;
+            }
+            case Reading: {
+                Serial.print("Reading: ");
+                break;
+            }
+        }
+        Serial.println(next_time);
+    }
+    sleep(next_time);
+
+        // Update packet ages
+    increment_packet_age(correct_millis() - loop_start);
+    loop_end = correct_millis();
+    uint32_t offset = loop_end - loop_start;
+    if (next_transmit > offset) {
+        next_transmit -= offset;
+    } else {
+        next_transmit = 0;
+    }
+    if (next_receive > offset) {
+        next_receive -= offset;
+    } else {
+        next_receive = 0;
+    }
+    if (next_reading > offset) {
+        next_reading -= offset;
+    } else {
+        next_reading = 0;
+    }
+    if (next_health > offset) {
+        next_health -= offset;
+    } else {
+        next_health = 0;
+    }
+}
     // Update packet ages
-    current_state = next_state;
+current_state = next_state;
 }
