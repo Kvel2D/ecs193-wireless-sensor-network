@@ -140,6 +140,8 @@ void setup() {
     // generate health or reading packet on startup
     if (my_data.parent == NO_ID) {
         current_state = Receive;
+        // Generate and print a health packet to announce that gateway is online and working
+        health_packet_generate();
     } else {
         if (!my_data.has_sensor) {
             current_state = HealthPacket;
