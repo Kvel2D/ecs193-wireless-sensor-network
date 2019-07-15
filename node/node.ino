@@ -513,28 +513,27 @@ void loop() {
         // Unified sleep
         // Generate new transmit time if packet_queue is not empty and we just
         // transmitted
-        if (packet_queue.size > 0 &&
-            (current_state == Transmit || !transmit_valid)) {
+        if (packet_queue.size > 0 && (current_state == Transmit || !transmit_valid)) {
             next_transmit = expovariate(TX_RATE);
-        transmit_valid = true;
-    }
-    // Generate new receive time if there's no sensors (isRelay)
-    if (!my_data.has_sensor && current_state == Receive) {
-        next_receive = expovariate(RX_RATE);
-    }
-    // Generate new reading generation time if there are sensors and we just
-    // generated a data packet
-    if (my_data.has_sensor && current_state == Reading) {
-        next_reading = PACKET_PERIOD;
-    }
-    // Generate new health packet generation time if is relay and we just
-    // generated a health packet
-    if (!my_data.has_sensor && current_state == HealthPacket) {
-        next_health = HEALTH_PACKET_PERIOD;
-    }
-    uint32_t next_time;
-    if (my_data.has_sensor) {
-        if (transmit_valid) {
+            transmit_valid = true;
+        }
+        // Generate new receive time if there's no sensors (isRelay)
+        if (!my_data.has_sensor && current_state == Receive) {
+            next_receive = expovariate(RX_RATE);
+        }
+        // Generate new reading generation time if there are sensors and we just
+        // generated a data packet
+        if (my_data.has_sensor && current_state == Reading) {
+            next_reading = PACKET_PERIOD;
+        }
+        // Generate new health packet generation time if is relay and we just
+        // generated a health packet
+        if (!my_data.has_sensor && current_state == HealthPacket) {
+            next_health = HEALTH_PACKET_PERIOD;
+        }
+        uint32_t next_time;
+        if (my_data.has_sensor) {
+            if (transmit_valid) {
                 // transmit, or generate data
                 // must not be <= or else it will always be in transmit mode while sleeping 0
                 if (next_transmit < next_reading) {
